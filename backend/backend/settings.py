@@ -34,6 +34,7 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    "blog_api",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -70,7 +71,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-
+AUTH_USER_MODEL = "blog_api.User"
 
 ROOT_URLCONF = "backend.urls"
 
