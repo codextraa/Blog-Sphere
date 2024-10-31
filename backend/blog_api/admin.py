@@ -7,14 +7,16 @@ from .models import User
 # Register your models here.
 class UserAdmin(BaseUserAdmin):
     """Custom User Admin."""
-    list_display = ('email', 'username', 'first_name', 'last_name', 'is_active', 'is_staff')
-    list_filter = ('is_active', 'is_staff')
+    list_display = ('email', 'username')
+    list_filter = ('groups',)
 
     # Fields to be displayed on the user detail page
     fieldsets = (
         (None, {'fields': ('email', 'username', 'password')}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'phone_number', 'profile_img')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'groups', 'user_permissions')
+        }),
         ('Important dates', {'fields': ('last_login',)}),
     )
 
@@ -22,7 +24,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'username', 'password1', 'password2', 'is_active', 'is_staff', 'is_superuser')}
+            'fields': ('email', 'username', 'password1', 'password2', 'is_active', 'is_staff')}
         ),
     )
 

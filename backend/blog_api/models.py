@@ -27,6 +27,7 @@ class UserManager(BaseUserManager):
 
         return user
 
+    # need to block this in production
     def create_superuser(self, email, password=None, **extra_fields):
         """Superuser Creation Manager."""
         extra_fields.setdefault("is_active", True)
@@ -43,10 +44,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
     phone_number = PhoneNumberField(null=True, blank=True)
-    profile_img = models.ImageField(upload_to="profile_images/", null=True)
+    profile_img = models.ImageField(upload_to="profile_images/", null=True, blank=True)
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    is_superuser = models.BooleanField(default=False)  # Add this line
 
     objects = UserManager()
 
@@ -56,7 +56,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def _pass_valid(self, password):
         """Password verification method used when setting password"""
         if password:
-            print(password)
             if (len(password) < 8 or
                 not re.search(r"[a-z]", password) or
                 not re.search(r"[A-Z]", password) or
