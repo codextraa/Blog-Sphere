@@ -1,7 +1,7 @@
 """Admin registration for blog api."""
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
+from .models import User, Category, Blog
 
 
 # Register your models here.
@@ -30,3 +30,5 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(User, UserAdmin)
+admin.site.register(Category)
+admin.site.register(Blog)

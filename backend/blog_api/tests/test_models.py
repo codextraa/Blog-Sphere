@@ -1,6 +1,6 @@
 """Test Cases for the User model."""
 from django.test import TestCase
-from blog_api.models import User
+from blog_api.models import User, Category
 from django.core.exceptions import ValidationError
 
 class UserManagerTests(TestCase):
@@ -65,3 +65,5 @@ class UserModelTests(TestCase):
         user = User(email='user@example.com')
         with self.assertRaises(ValidationError):
             user.set_password('weakpass')  # Set a weak password
+
+

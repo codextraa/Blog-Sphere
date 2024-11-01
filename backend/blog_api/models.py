@@ -77,3 +77,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         """Return username."""
         return self.email
+
+class Category(models.Model):
+    """Category Model."""
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+class Blog(models.Model):
+    """Blog Model."""
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    image = models.ImageField(upload_to="blog_images/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.ManyToManyField(Category)
+
+    def __str__(self):
+        return self.title

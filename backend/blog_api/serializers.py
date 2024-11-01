@@ -1,6 +1,6 @@
 """Serializers for the blog api."""
 from rest_framework import serializers
-from .models import User
+from .models import User, Category, Blog
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'email', 'username', 'first_name', 'last_name', 'password',
+            'id', 'email', 'username', 'first_name', 'last_name', 'password',
             'phone_number', 'profile_img', 'is_active', 'is_staff'
         ]
         extra_kwargs = {
@@ -34,3 +34,22 @@ class UserSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """Serializer for the Category model."""
+
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+class BlogSerializer(serializers.ModelSerializer):
+    """Serializer for the Blog Model"""
+
+    class Meta:
+        model = Blog
+        fields = '__all__'
+        extra_kwargs = {
+            'author': {'read_only': True},
+            'category': {'read_only': True}
+        }
