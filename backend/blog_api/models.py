@@ -7,6 +7,7 @@ from django.contrib.auth.models import (
 )
 from phonenumber_field.modelfields import PhoneNumberField
 from django.core.exceptions import ValidationError
+from django.core.validators import MinLengthValidator
 import re
 
 
@@ -80,20 +81,28 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Category(models.Model):
     """Category Model."""
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[MinLengthValidator(1)])
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Run validators
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
 
 class Blog(models.Model):
     """Blog Model."""
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, validators=[MinLengthValidator(1)])
     content = models.TextField()
     image = models.ImageField(upload_to="blog_images/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ManyToManyField(Category)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Run validators
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

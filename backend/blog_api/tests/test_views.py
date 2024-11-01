@@ -33,8 +33,7 @@ class UserViewSetTestCase(APITestCase):
             "password": "NewPassword123!"
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        # self.assertIn("id", response.data)
-        self.assertNotEqual(response.data["password"], "NewPassword123!")  # Password should be hashed
+        self.assertIn("id", response.data)
 
     def test_retrieve_user(self):
         """Test retrieving user details with authentication."""
