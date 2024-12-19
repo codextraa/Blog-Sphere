@@ -43,6 +43,7 @@ else:
 
 INSTALLED_APPS = [
     "blog_api",
+    # 'csp',
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -58,6 +59,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    'backend.middleware.csp_middleware.CustomCSPMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -66,6 +68,13 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# CSP_DEFAULT_SRC = ("'self'",)
+# CSP_SCRIPT_SRC = ("'self'", "https://cdn.jsdelivr.net", "https://apis.google.com")
+# CSP_STYLE_SRC = ("'self'", "https://fonts.googleapis.com")
+# CSP_IMG_SRC = ("'self'", "data:", "https://images.com")
+# CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
+# CSP_CONNECT_SRC = ("'self'", "wss://api.yourapp.com")
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': (
@@ -80,11 +89,26 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    # Token Lifetimes
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    # Token Rotation and Blacklisting
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    'ALGORITHM': 'HS256',
+
+    # Encryption Algorithm
+    'ALGORITHM': 'HS256',  # Or 'RS256' if using asymmetric encryption
+    # 'SIGNING_KEY': 'your_private_key_here',    
+    # 'VERIFYING_KEY': 'your_public_key_here',   
+
+    # Cookies
+    'AUTH_COOKIE': 'access_token',
+    'AUTH_COOKIE_REFRESH': 'refresh_token',
+    'AUTH_COOKIE_SECURE': True,        # HTTPS only
+    'AUTH_COOKIE_HTTP_ONLY': True,     # HTTP-only cookies
+    'AUTH_COOKIE_PATH': '/',           # Available site-wide
+    'AUTH_COOKIE_SAMESITE': 'Strict',  # Prevent cross-origin requests
 }
 
 ROOT_URLCONF = "backend.urls"
@@ -161,7 +185,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://192.168.56.1:3000",
+    "http://localhost:8080",  # Frontend served by Nginx
+    "http://127.0.0.1:8080",  # Frontend served by Nginx
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Must be False since JavaScript needs to read the token
+CSRF_COOKIE_SAMESITE = 'Strict' # Prevent cross-origin requests
 
 AUTH_USER_MODEL = 'blog_api.User'
 
@@ -169,7 +202,7 @@ TESTING = os.getenv("TESTING", 'False') == 'True'
 
 if TESTING:
     MEDIA_URL = '/media/test_media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media', 'test_media')
+    MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', 'test_media')
 else:
     MEDIA_URL = '/media/'
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+    MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media')
