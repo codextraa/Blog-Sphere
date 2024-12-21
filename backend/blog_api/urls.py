@@ -21,6 +21,7 @@ router.register(r"blogs", views.BlogViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('get-csrf-token/', views.get_csrf_token, name='get_csrf_token'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

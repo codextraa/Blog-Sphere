@@ -7,6 +7,8 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from .models import Category, Blog
 from .serializers import (
     UserSerializer,
@@ -16,6 +18,9 @@ from .serializers import (
     BlogImageSerializer
 )
 
+
+def get_csrf_token(request):
+    return JsonResponse({'csrfToken': get_token(request)})
 
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""

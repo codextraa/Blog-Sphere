@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,22 +11,23 @@ const api = axios.create({
   },
 });
 
-const getCookie = (name) => {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
+const setCsrfToken = (token) => {
+  api.defaults.headers['X-CSRFToken'] = token;
 };
 
-api.interceptors.response.use((config) => {
-  const csrfToken = getCookie('csrftoken');
-  if (csrfToken) {
-    config.headers['X-CSRFToken'] = csrfToken;
+export const fetchCsrfToken = async () => {
+  try {
+    const response = await api.get('get-csrf-token/');
+    return response.data.csrfToken;
+  } catch (error) {
+    console.error('Error fetching CSRF token:', error);
+    return null;
   }
-  return config;
-});
+};
 
 //API Endpoints
-export const login = async (credentials) => {
+export const login = async (credentials, csrfToken) => {
+  setCsrfToken(csrfToken);
   return api.post('token/', credentials);
 };
 
