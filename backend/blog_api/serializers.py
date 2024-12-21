@@ -17,6 +17,18 @@ class UserSerializer(serializers.ModelSerializer):
                 'style': {'input_type': 'password'}
             }
         }
+        
+    def validate(self, attrs):
+        """Validate all data"""
+        
+        attrs = super().validate(attrs)
+        
+        if attrs.get('first_name'):
+            attrs['first_name'] = attrs['first_name'].title()
+        if attrs.get('last_name'):
+            attrs['last_name'] = attrs['last_name'].title()
+            
+        return attrs
 
     def create(self, validated_data):
         """Create and return a user with encrypted password."""
@@ -66,6 +78,15 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name']
         read_only_fields = ['id']
+        
+    def validate(self, attrs):
+        """Validate all data"""
+        attrs = super().validate(attrs)
+        
+        if attrs.get('name'):
+            attrs['name'] = attrs['name'].title()
+            
+        return attrs
 
     def create(self, validated_data):
         """Create a category or if exists return it."""
@@ -94,6 +115,15 @@ class BlogSerializer(serializers.ModelSerializer):
                 **cat,
             )
             blog.categories.add(cat_obj)
+            
+    def validate(self, attrs):
+        """Validate all data"""
+        attrs = super().validate(attrs)
+        
+        if attrs.get('title'):
+            attrs['title'] = attrs['title'].capitalize()
+            
+        return attrs
 
     def create(self, validated_data):
         """Create a blog"""

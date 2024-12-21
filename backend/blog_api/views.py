@@ -35,7 +35,7 @@ class UserViewSet(ModelViewSet):
         """Return the serializer class for the action."""
         if self.action == "upload_image": # Image handled with different serializer
             return UserImageSerializer
-        return self.serializer_class
+        return super().get_serializer_class()
 
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile."""
@@ -201,7 +201,7 @@ class BlogViewSet(ModelViewSet):
         """Serializer class for different actions"""
         if self.action == "upload_image":
             return BlogImageSerializer
-        return self.serializer_class
+        return super().get_serializer_class()
 
     def update(self, request, *args, **kwargs):
         """Restrict updates to authors, staff, or superusers."""
