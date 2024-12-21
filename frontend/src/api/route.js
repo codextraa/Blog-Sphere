@@ -11,6 +11,32 @@ const api = axios.create({
   },
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response.status === 401 && // Unauthorized error
+      !originalRequest._retry // Avoid infinite loop
+    ) {
+      originalRequest._retry = true;
+      try {
+        // Refresh the token
+        const csrfToken = await fetchCsrfToken();
+        if (csrfToken) {
+          setCsrfToken(csrfToken);
+        }
+        await refreshAccessToken();
+        return api(originalRequest); // Retry original request
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 const setCsrfToken = (token) => {
   api.defaults.headers['X-CSRFToken'] = token;
 };
@@ -34,6 +60,10 @@ export const login = async (credentials, csrfToken) => {
 export const refreshAccessToken = async () => {
   return api.post('token/refresh/');
 };
+
+// export const tokenVerify = async () => {
+//   return api.post('token/verify/'); // Verify token
+// };
 
 export const fetchUsers = async() => {
   return api.get('users/');
