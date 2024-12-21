@@ -53,7 +53,7 @@ export const fetchCsrfToken = async () => {
 
 //API Endpoints
 export const login = async (credentials, csrfToken) => {
-  setCsrfToken(csrfToken);
+  // setCsrfToken(csrfToken);
   return api.post('token/', credentials);
 };
 
@@ -61,9 +61,19 @@ export const refreshAccessToken = async () => {
   return api.post('token/refresh/');
 };
 
-// export const tokenVerify = async () => {
-//   return api.post('token/verify/'); // Verify token
-// };
+export const tokenVerify = async (token, csrfToken) => {
+  setCsrfToken(csrfToken);
+  // return api.post('token/verify/', { token: access_token }); // Verify token
+  const response = await fetch(`${API_BASE_URL}/token/verify/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json', // Ensure correct content type
+    },
+    body: JSON.stringify({ token }), // Send token in the body with the correct key
+  });
+
+  return response;
+};
 
 export const fetchUsers = async() => {
   return api.get('users/');

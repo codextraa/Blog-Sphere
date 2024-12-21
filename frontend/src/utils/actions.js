@@ -19,18 +19,23 @@ export async function loginUser(prevState, formData) {
     if (response && response.status === 200) {
       console.log('Login successful');
       console.log(response.data);
-    };
+      
+      // Revalidate the page
+      revalidatePath('/sphere');
 
+      return {
+        accessToken: response.data.access,
+        refreshToken: response.data.refresh,
+        errors: null
+      }
+    };
+    
   } catch (error) {
     // error for the server
-    console.error("Unexpected server error message: ", error.response?.data || error.message);
     console.error("Unexpected server error: ", error);
     // error for the client
     return { errors: 'Invalid login credentials. Please try again.' };
   };
-
-  revalidatePath('/');
-  redirect('/');
 };
 
 // Djangosun@123

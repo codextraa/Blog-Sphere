@@ -6,10 +6,17 @@ import { LoginButton } from '@/components/button';
 import { loginUser } from "@/utils/actions";
 import Image from 'next/image';
 import logoImg from '@/icons/circle_design.svg';
-
+import { setTokencookie } from "@/utils/cookie";
 
 export default function loginPage () {
   const [state, formAction] = useActionState(loginUser, { errors: null });
+
+  if (state.accessToken && state.refreshToken) {
+    setTokencookie(state.accessToken, state.refreshToken);
+    
+    // Redirect the user to /sphere
+    window.location.href = '/sphere';
+  }
 
   return (
     <div className={classes.login_container}>
