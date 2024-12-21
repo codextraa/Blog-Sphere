@@ -1,0 +1,142 @@
+/* Reset and base styles */
+/* * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  } */
+  
+
+  
+  /* Container styles */
+  .login_container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #3F51B5;
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Logo styles */
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 4rem;
+  }
+  
+  .logo span {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+
+  .logo_icon {
+    width: 30.38px;
+    height: 30.38px;
+  }
+  
+  /* Form container styles */
+  .login_form_container {
+    width: 100%;
+    max-width: 24rem;
+  }
+  
+  .login_form_container h1 {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  /* Form styles */
+  .login_form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .input_group {
+    position: relative;
+  }
+  
+  .input_group input {
+    width: 100%;
+    height: 48px;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 0 1rem 0 3rem;
+    color: white;
+    font-size: 0.875rem;
+  }
+  
+  .input_group input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .input_group input:focus {
+    font-family: inherit;
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .input_group input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+    font-family: inherit; /* Ensures placeholder uses the same font */
+    font-size: inherit; /* Ensure it matches input font size */
+  }
+  
+  
+  /* Icon styles */
+  .user_icon,
+  .password_icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+  }
+  
+  .user_icon {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/%3E%3C/svg%3E") no-repeat center;
+  }
+  
+  .password_icon {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z'/%3E%3C/svg%3E") no-repeat center;
+  }
+  
+  
+
+  /* Button styles */
+  .login_form button {
+    width: 100%;
+    height: 48px;
+    background-color: white;
+    color: #3F51B5;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .login_form button:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 480px) {
+    .login-form-container {
+      max-width: 100%;
+    }
+  }
+  
+  
