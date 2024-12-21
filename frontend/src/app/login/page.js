@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 // import { classes } from './page.module.css';
 import { LoginButton } from '@/components/button';
-import { loginUser } from "@/lib/actions";
+import { loginUser } from "@/utils/actions";
 
 export default function loginPage () {
   const [state, formAction] = useActionState(loginUser, { errors: null });
