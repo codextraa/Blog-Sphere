@@ -13,12 +13,34 @@ export default function loginPage () {
 
   return (
     <div className={classes.login_container}>
-        <div className={classes.logo}>
+        {/* <div className={classes.logo}>
             <Image src={logoImg} className={classes.logo_icon} alt="Blog-Sphere-logo" priority />
             <span>SPHERE</span>
 
 
+          </div> */}
+      <div className={classes.logo}>
+          <div className={classes.text_reveal}>
+            <span className={classes.reveal_text}>
+              {'SPHERE'.split('').map((letter, i) => (
+                <span 
+                  key={i} 
+                  style={{ 
+                    animationDelay: `${i * 0.2}s`,
+                    color: 'white',
+                    fontSize: '1.25rem',
+                    fontWeight: 500
+                  }}
+                >
+                  {letter}
+                </span>
+              ))}
+            </span>
+            <div className={classes.logo_icon}>
+              <Image src={logoImg} className={classes.logo_icon_img} alt="Blog-Sphere-logo" priority />
+            </div>
           </div>
+        </div>
           <div className={classes.login_form_container}>
             <h1>Login</h1>
             <form action={formAction} className={classes.login_form}>
