@@ -1,14 +1,24 @@
 """Views for the Blog API."""
+from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView
+)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.http import JsonResponse
+from django.contrib.sessions.models import Session
 from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from .models import Category, Blog
 from .serializers import (
     UserSerializer,
@@ -19,14 +29,91 @@ from .serializers import (
 )
 
 
-def get_csrf_token(request):
-    return JsonResponse({'csrfToken': get_token(request)})
+# @method_decorator(csrf_protect, name='dispatch')
+class CSRFTokenObtainPairView(TokenObtainPairView):
+    """Token Obtain Pair View with session."""
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        tokens = response.data
+        request.session["access"] = tokens.get("access")
+        request.session["refresh"] = tokens.get("refresh")
+        request.session.save()
+        response.data["sessionId"] = request.session.session_key
+        return response
 
+# @method_decorator(csrf_protect, name='dispatch')
+class CSRFTokenRefreshView(TokenRefreshView):
+    """Token Refresh View with session."""
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.session.get("refresh")
+        if not refresh_token:
+            raise AuthenticationFailed("Refresh token not found in session.")
+        
+        request.data["refresh"] = refresh_token
+        response = super().post(request, *args, **kwargs)
+        
+        if not response.data.get("access"):
+            raise AuthenticationFailed("Refresh token is invalid or expired.")
+        
+        request.session["access"] = response.data.get("access")
+        request.session.save()
+        response.data["sessionid"] = request.session.session_key
+        return response
+
+# @method_decorator(csrf_protect, name='dispatch')
+class CSRFTokenVerifyView(TokenVerifyView):
+    pass
+
+class CSRFTokenView(APIView):
+    serializer_class = None
+    permission_classes = [AllowAny]
+    
+    @csrf_exempt
+    def get(self, request, *args, **kwargs):
+        csrf_token = get_token(request)
+        return Response({"csrfToken": csrf_token})
+
+class RetrieveTokenView(APIView):
+    serializer_class = None
+    permission_classes = [AllowAny]
+    
+    @csrf_exempt
+    def get(self, request, *args, **kwargs):
+        sessionid = request.session.session_key
+        print(sessionid)
+        
+        if not sessionid:
+            return Response({"error": "Session ID not found."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            session = session.objects.get(session_key=sessionid)
+            session_data = session.get_decoded()
+            
+            # Retrieve tokens
+            access_token = session_data.get("access")
+            refresh_token = session_data.get("refresh")
+            
+            if not access_token or not refresh_token:
+                return Response({"error": "Tokens not found in session."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "sessionId": sessionid
+            })
+        
+        except Session.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_400_BAD_REQUEST)
+        
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
     queryset = get_user_model().objects.all() # get all the users
     serializer_class = UserSerializer # User Serializer initialized
     authentication_classes = [JWTAuthentication] # Using jwtoken
+    
+    @method_decorator(csrf_protect)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get_permissions(self):
         """Permission for CRUD operations."""
@@ -194,6 +281,10 @@ class CategoryViewSet(ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    
+    @method_decorator(csrf_protect)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
 class BlogViewSet(ModelViewSet):
     """Viewset for Blog APIs."""
@@ -201,6 +292,10 @@ class BlogViewSet(ModelViewSet):
     serializer_class = BlogSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    
+    @method_decorator(csrf_protect)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
     def get_serializer_class(self):
         """Serializer class for different actions"""

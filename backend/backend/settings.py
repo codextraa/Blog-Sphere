@@ -59,12 +59,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    # "backend.middleware.csrf_middleware.CustomCsrfMiddleware",
+    "backend.middleware.csrf_middleware.CustomCsrfMiddleware",
     # 'backend.middleware.csp_middleware.CustomCSPMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -92,7 +92,7 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     # Token Lifetimes
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 
     # Token Rotation and Blacklisting
     'ROTATE_REFRESH_TOKENS': True,
@@ -102,15 +102,15 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',  # Or 'RS256' if using asymmetric encryption
     # 'SIGNING_KEY': 'your_private_key_here',    
     # 'VERIFYING_KEY': 'your_public_key_here',   
-
-    # Cookies
-    'AUTH_COOKIE': 'access_token',
-    'AUTH_COOKIE_REFRESH': 'refresh_token',
-    'AUTH_COOKIE_SECURE': True,        # HTTPS only
-    'AUTH_COOKIE_HTTP_ONLY': True,     # HTTP-only cookies
-    'AUTH_COOKIE_PATH': '/',           # Available site-wide
-    'AUTH_COOKIE_SAMESITE': 'Strict',  # Prevent cross-origin requests
 }
+
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 24 * 60 * 60 # 1 day
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_SECURE = True #HTTPS only
+SESSION_COOKIE_HTTPONLY = True #HTTP-only cookies
+SESSION_COOKIE_SAMESITE = 'Lax' #Prevent cross-site requests
 
 ROOT_URLCONF = "backend.urls"
 
@@ -188,12 +188,15 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://192.168.56.1:3000",
 ]
-
 CORS_ALLOW_CREDENTIALS = True
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",  # Add your frontend's domain
+    "http://127.0.0.1:3000",
+]
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
-CSRF_COOKIE_HTTPONLY = False  # Must be False since JavaScript needs to read the token
-CSRF_COOKIE_SAMESITE = 'Strict' # Prevent cross-origin requests
+CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
+CSRF_COOKIE_SAMESITE = 'Lax' # Prevent cross-origin requests
 
 AUTH_USER_MODEL = 'blog_api.User'
 
