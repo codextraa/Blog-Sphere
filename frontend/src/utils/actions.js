@@ -41,7 +41,6 @@ export async function loginUser(prevState, formData) {
     console.error("Unexpected server error: ", error);
     // error for the client
     return { errors: 'Invalid login credentials. Please try again.' };
-
   };
 };
 

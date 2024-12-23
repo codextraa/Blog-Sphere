@@ -61,6 +61,7 @@ export const tokenRefresh = async () => {
 };
 
 export const tokenVerify = async (token) => {
+  // setCsrfToken(csrfToken);
   // return api.post('token/verify/', { token: access_token }); // Verify token
   const response = await fetch(`${API_BASE_URL}/token/verify/`, {
     method: 'POST',

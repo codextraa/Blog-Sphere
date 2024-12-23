@@ -6,23 +6,55 @@ import { LoginButton } from '@/components/button';
 import { loginUser } from "@/utils/actions";
 import Image from 'next/image';
 import logoImg from '@/icons/circle_design.svg';
+<<<<<<< HEAD
+=======
+import { setTokencookie } from "@/utils/cookie";
+>>>>>>> c47ce8be72a3540de0b497c99b9f405dab60a3d6
 
 export default function loginPage () {
   const [state, formAction] = useActionState(loginUser, { errors: null });
 
+<<<<<<< HEAD
   if (state.success) {
+=======
+  if (state.accessToken && state.refreshToken) {
+    setTokencookie(state.accessToken, state.refreshToken);
+    
+>>>>>>> c47ce8be72a3540de0b497c99b9f405dab60a3d6
     // Redirect the user to /sphere
     window.location.href = '/sphere';
   }
 
   return (
     <div className={classes.login_container}>
-        <div className={classes.logo}>
+        {/* <div className={classes.logo}>
             <Image src={logoImg} className={classes.logo_icon} alt="Blog-Sphere-logo" priority />
             <span>SPHERE</span>
 
 
+          </div> */}
+      <div className={classes.logo}>
+          <div className={classes.text_reveal}>
+            <span className={classes.reveal_text}>
+              {'SPHERE'.split('').map((letter, i) => (
+                <span 
+                  key={i} 
+                  style={{ 
+                    animationDelay: `${i * 0.2}s`,
+                    color: 'white',
+                    fontSize: '1.25rem',
+                    fontWeight: 500
+                  }}
+                >
+                  {letter}
+                </span>
+              ))}
+            </span>
+            <div className={classes.logo_icon}>
+              <Image src={logoImg} className={classes.logo_icon_img} alt="Blog-Sphere-logo" priority />
+            </div>
           </div>
+        </div>
           <div className={classes.login_form_container}>
             <h1>Login</h1>
             <form action={formAction} className={classes.login_form}>
