@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import classes from './page.module.css';
 import { LoginButton } from '@/components/button';
-import { loginUser } from "@/utils/actions";
+import { loginUser } from "@/actions/login";
 import Image from 'next/image';
 import logoImg from '@/icons/circle_design.svg';
 

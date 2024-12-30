@@ -1,9 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { tokenLogin } from '@/api/route';
-import { fetchCsrfToken } from '@/api/route';
-import { setSessionId } from './session';
+import { tokenLogin } from '../../route';
+import { fetchCsrfToken } from '../../route';
+import { setSessionId } from '../utils/session';
 
 export async function loginUser(prevState, formData) {
   const credentials = {

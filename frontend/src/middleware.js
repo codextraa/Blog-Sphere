@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { tokenVerify, tokenRefresh, retrieveTokenId } from "@/api/route";
+import { tokenVerify, tokenRefresh, retrieveTokenId } from "../route";
 import { getSessionId, setSessionId, deleteSessionId } from "./utils/session";
-import { fetchCsrfToken } from "@/api/route";
+import { fetchCsrfToken } from "../route";
 
 
 export default async function tokenMiddleware(req) {
