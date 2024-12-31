@@ -1,7 +1,12 @@
 """Serializers For Blog API."""
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import Category, Blog
+from .models import (
+    EmailVerification,
+    PasswordResetCode,
+    Category, 
+    Blog
+)
 
 class UserSerializer(serializers.ModelSerializer):
     """User Serializer."""
@@ -71,6 +76,20 @@ class UserImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid file type. Only JPEG, PNG, and GIF images are allowed.")
 
         return value
+    
+class EmailVerificationSerializer(serializers.ModelSerializer):
+    """Email Verification Serializer."""
+    class Meta:
+        model = EmailVerification
+        fields = ['email', 'code', 'created_at', 'expires_at']
+        read_only_fields = ['id', 'created_at', 'expires_at']
+        
+class PasswordResetSerializer(serializers.ModelSerializer):
+    """Email Verification Serializer."""
+    class Meta:
+        model = PasswordResetCode
+        fields = ['user', 'code', 'created_at', 'expires_at']
+        read_only_fields = ['id', 'created_at', 'expires_at']
 
 class CategorySerializer(serializers.ModelSerializer):
     """Category Serializer."""

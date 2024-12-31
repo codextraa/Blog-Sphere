@@ -1,4 +1,6 @@
 """Views for the Blog API."""
+import random
+from datetime import datetime
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -19,15 +21,25 @@ from django.contrib.sessions.models import Session
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
-from .models import Category, Blog
+from .models import (
+    EmailVerification, 
+    Category, 
+    Blog
+)
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
+    EmailVerificationSerializer,
+    PasswordResetSerializer,
     CategorySerializer,
     BlogSerializer,
     BlogImageSerializer
 )
 
+
+def generate_code(self):
+        """Generate a random 6-digit code."""
+        return random.randint(100000, 999999)
 
 # @method_decorator(csrf_protect, name='dispatch')
 class CSRFTokenObtainPairView(TokenObtainPairView):
@@ -105,6 +117,79 @@ class RetrieveTokenView(APIView):
         except Session.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_400_BAD_REQUEST)
         
+class EmailVerificationView(APIView):
+    serializer_class = EmailVerificationSerializer
+    permission_classes = [AllowAny]
+    
+    def post(self, request, *args, **kwargs):
+        """Generate and send verification code."""
+        user_email = request.data.get('email')
+        action = request.data.get('action')
+        
+        if not user_email:
+            return Response({"error": "Email not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not action:
+            return Response({"error": "Action not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            email_verification_obj = EmailVerification.objects.get(email=user_email)
+            
+        except EmailVerification.DoesNotExist:
+            if action == "send":
+                pass
+            else:
+                return Response({"error": "Verification code not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        
+        if action == "send":
+            if email_verification_obj.expiry_at < datetime.now():
+                return Response(
+                    {"message": "Code alredy sent."},
+                    status = status.HTTP_200_OK
+                )
+            else:
+                email_verification_obj.delete()
+            
+            code = generate_code()
+            request.data['code'] = code
+            
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            return Response({"success": True}, status=status.HTTP_201_CREATED)
+        
+        if action == "verify":
+            code = request.data.get('code')
+            if not code:
+                return Response({"error": "Code not provided."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if email_verification_obj.expire_at > datetime.now():
+                email_verification_obj.delete()
+                return Response(
+                    {"error": "Verification code has expired."},
+                    status = status.HTTP_400_BAD_REQUEST
+                )
+            
+            if email_verification_obj.code == code:
+                # Verification successful
+                email_verification_obj.delete()
+                return Response({"success": True}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid verification code."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, *args, **kwargs):
+        email = request.query_params.get('email')
+        if not email:
+            return Response({"error": "Email not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            verification_obj = EmailVerification.objects.get(email=email)
+            verification_obj.delete()
+            return Response({"success": True}, status=status.HTTP_200_OK)
+        
+        except EmailVerification.DoesNotExist:
+            return Response({"error": "Verification code not found."}, status=status.HTTP_404_NOT_FOUND)
+        
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
     queryset = get_user_model().objects.all() # get all the users
@@ -180,6 +265,65 @@ class UserViewSet(ModelViewSet):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, method=['post'], url_path='password-reset')
+    def password_reset(self, request, pk=None):
+        user_email = request.data.get('email')
+        action = request.data.get('action')
+        
+        if not user_email:
+            return Response({"error": "Email not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not action:
+            return Response({"error": "Action not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            email_verification_obj = EmailVerification.objects.get(email=user_email)
+            
+        except EmailVerification.DoesNotExist:
+            if action == "send":
+                pass
+            else:
+                return Response({"error": "Verification code not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if action == "send":
+            if email_verification_obj.expiry_at < datetime.now():
+                return Response(
+                    {"message": "Code alredy sent."},
+                    status = status.HTTP_200_OK
+                )
+            else:
+                email_verification_obj.delete()
+            
+            code = generate_code()
+            request.data['code'] = code
+            
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            return Response({"success": True}, status=status.HTTP_201_CREATED)
+        
+        if action == "verify":
+            code = request.data.get('code')
+            if not code:
+                return Response({"error": "Code not provided."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if email_verification_obj.expire_at > datetime.now():
+                email_verification_obj.delete()
+                return Response(
+                    {"error": "Verification code has expired."},
+                    status = status.HTTP_400_BAD_REQUEST
+                )
+            
+            if email_verification_obj.code == code:
+                # Verification successful
+                email_verification_obj.delete()
+                return Response({"success": True}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid verification code."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if action == "delete":
+            email_verification_obj.delete()
+            return Response({"success": True}, status=status.HTTP_200_OK)      
 
     @action(detail=True, methods=['post'], url_path='deactivate-user')
     def deactivate_user(self, request, pk=None):

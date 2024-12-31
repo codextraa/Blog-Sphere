@@ -8,7 +8,9 @@ from django.contrib.auth.models import (
 from phonenumber_field.modelfields import PhoneNumberField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-import re
+from django.utils.timezone import now
+from datetime import timedelta
+import re, random
 
 class UserManager(BaseUserManager):
     """Custom User Manager"""
@@ -89,6 +91,35 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         """Return Email"""
         return self.email
+    
+# Migrations necessary need testing first
+class EmailVerification(models.Model):
+    email = models.EmailField(max_length=255)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=now() + timedelta(minutes=10))
+    
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Verification code for {self.user.email}"
+    
+class PasswordResetCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=now() + timedelta(minutes=10))
+    
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Verification code for {self.user.email}"
 
 class Category(models.Model):
     """Category Model"""
