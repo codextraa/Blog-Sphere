@@ -1,47 +1,45 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import { tokenLogin } from '../../route';
-import { fetchCsrfToken } from '../../route';
-import { setSessionId } from '../utils/session';
+// import { revalidatePath } from 'next/cache';
+// import { tokenLogin } from '../../api';
+// import { fetchCsrfToken } from '../../api';
+// import { setSessionId } from '../utils/session';
+import { AuthError } from 'next-auth';
+import { signIn } from '@/auth';
+import { DEFAULT_LOGIN_REDIRECT } from '@/route';
 
 export async function loginUser(prevState, formData) {
-  const credentials = {
-    email: formData.get('email'),
-    password: formData.get('password')
-  };
+  console.log("Triggered loginUser");
+  let email = formData.get('email');
+  let password = formData.get('password');
+
+  if (email === '' || password === '') {
+    return {
+      errors: 'Email and password are required.'
+    };
+  };  
 
   try {
-    // const csrftoken = await fetchCsrfToken();
-
-    const response = await tokenLogin(credentials);
-
-    console.log('response');
-
-    if (response && response.status === 200) {
-      console.log('Login successful');
-      const { sessionId, access, refresh } = response.data;
-      console.log('response data', response.data);
-      await setSessionId(sessionId, { access_token : access, refresh_token : refresh });
-      revalidatePath('/sphere');  
-
-      return {
-        success: true,
-        errors: null
-      }
-    } else {
-      console.log('Login failed');
-      return {
-        errors: 'Login failed. Please try again.'
-      }
-    }
-    
+    await signIn("credentials", {
+      email,
+      password,
+      redirectTo: DEFAULT_LOGIN_REDIRECT
+    });
   } catch (error) {
-    // error for the server
-    console.error("Unexpected server error: ", error);
-    // error for the client
-    return { errors: 'Invalid login credentials. Please try again.' };
+    // error for server
+    console.error(error);
+    if (error instanceof AuthError) {
+        switch (error.type) {
+            case "CredentialsSignin":
+                return { error: "Invalid credentials" };
+            default:
+                return { error: "Something went wrong" };
+        };
+    };
+
+    throw error;
   };
 };
 
 // Djangosun@123
+

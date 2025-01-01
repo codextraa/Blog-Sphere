@@ -266,7 +266,7 @@ class UserViewSet(ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    @action(detail=True, method=['post'], url_path='password-reset')
+    @action(detail=True, methods=['post'], url_path='password-reset')
     def password_reset(self, request, pk=None):
         user_email = request.data.get('email')
         action = request.data.get('action')

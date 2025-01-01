@@ -187,12 +187,17 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://192.168.56.1:3000",
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
+    "https://192.168.56.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",  # Add your frontend's domain
     "http://127.0.0.1:3000",
+    "https://localhost:3000",  # Add your frontend's domain
+    "https://127.0.0.1:3000",
 ]
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
 CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token

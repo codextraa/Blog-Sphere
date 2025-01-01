@@ -1,4 +1,3 @@
-import { subtle } from 'crypto';
 import { cookies } from 'next/headers';
 
 
@@ -41,7 +40,7 @@ export const setSessionId = async (sessionId, tokens) => {
   cookieStore.set('sessionId', sessionId, {
     httpOnly: true, // Prevent client-side access
     secure: true, // HTTPS in production
-    sameSite: 'None', // Required for cross-site requests
+    sameSite: 'Lax', // Required for cross-site requests
     maxAge: 1 * 24 * 60 * 60 // 1 day
   });
   console.log('set cookie', cookieStore);

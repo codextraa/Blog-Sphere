@@ -20,7 +20,6 @@ urlpatterns = [
     path('get-csrf-token/', views.CSRFTokenView.as_view(), name='get_csrf_token'),
     path('retrieve-token/', views.RetrieveTokenView.as_view(), name='retrieve_session_id'),
     path('email-verification/', views.EmailVerificationView.as_view(), name='email_verification'),
-    path('password-reset/', views.PasswordResetView.as_view(), name='password_reset'),
     path('token/', views.CSRFTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', views.CSRFTokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', views.CSRFTokenVerifyView.as_view(), name='token_verify'),

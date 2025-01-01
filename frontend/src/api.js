@@ -52,6 +52,7 @@ export const retrieveTokenId = async () => {
 
 //API Endpoints
 export const tokenLogin = async (credentials) => {
+  console.log("Triggered tokenLogin");
   return api.post('token/', credentials);
 };
 
