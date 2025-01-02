@@ -9,11 +9,6 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView
-)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.http import JsonResponse
@@ -40,82 +35,6 @@ from .serializers import (
 def generate_code(self):
         """Generate a random 6-digit code."""
         return random.randint(100000, 999999)
-
-# @method_decorator(csrf_protect, name='dispatch')
-class CSRFTokenObtainPairView(TokenObtainPairView):
-    """Token Obtain Pair View with session."""
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        tokens = response.data
-        request.session["access"] = tokens.get("access")
-        request.session["refresh"] = tokens.get("refresh")
-        request.session.save()
-        response.data["sessionId"] = request.session.session_key
-        return response
-
-# @method_decorator(csrf_protect, name='dispatch')
-class CSRFTokenRefreshView(TokenRefreshView):
-    """Token Refresh View with session."""
-    def post(self, request, *args, **kwargs):
-        refresh_token = request.session.get("refresh")
-        if not refresh_token:
-            raise AuthenticationFailed("Refresh token not found in session.")
-        
-        request.data["refresh"] = refresh_token
-        response = super().post(request, *args, **kwargs)
-        
-        if not response.data.get("access"):
-            raise AuthenticationFailed("Refresh token is invalid or expired.")
-        
-        request.session["access"] = response.data.get("access")
-        request.session.save()
-        response.data["sessionid"] = request.session.session_key
-        return response
-
-# @method_decorator(csrf_protect, name='dispatch')
-class CSRFTokenVerifyView(TokenVerifyView):
-    pass
-
-class CSRFTokenView(APIView):
-    serializer_class = None
-    permission_classes = [AllowAny]
-    
-    @csrf_exempt
-    def get(self, request, *args, **kwargs):
-        csrf_token = get_token(request)
-        return Response({"csrfToken": csrf_token})
-
-class RetrieveTokenView(APIView):
-    serializer_class = None
-    permission_classes = [AllowAny]
-    
-    @csrf_exempt
-    def get(self, request, *args, **kwargs):
-        sessionid = request.session.session_key
-        print(sessionid)
-        
-        if not sessionid:
-            return Response({"error": "Session ID not found."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            session = session.objects.get(session_key=sessionid)
-            session_data = session.get_decoded()
-            
-            # Retrieve tokens
-            access_token = session_data.get("access")
-            refresh_token = session_data.get("refresh")
-            
-            if not access_token or not refresh_token:
-                return Response({"error": "Tokens not found in session."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            return Response({
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "sessionId": sessionid
-            })
-        
-        except Session.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_400_BAD_REQUEST)
         
 class EmailVerificationView(APIView):
     serializer_class = EmailVerificationSerializer
@@ -486,3 +405,82 @@ class BlogViewSet(ModelViewSet):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
+# deprecated
+
+# # @method_decorator(csrf_protect, name='dispatch')
+# class CSRFTokenObtainPairView(TokenObtainPairView):
+#     """Token Obtain Pair View with session."""
+#     def post(self, request, *args, **kwargs):
+#         response = super().post(request, *args, **kwargs)
+#         tokens = response.data
+#         request.session["access"] = tokens.get("access")
+#         request.session["refresh"] = tokens.get("refresh")
+#         request.session.save()
+#         response.data["sessionId"] = request.session.session_key
+#         return response
+
+# # @method_decorator(csrf_protect, name='dispatch')
+# class CSRFTokenRefreshView(TokenRefreshView):
+#     """Token Refresh View with session."""
+#     def post(self, request, *args, **kwargs):
+#         refresh_token = request.session.get("refresh")
+#         if not refresh_token:
+#             raise AuthenticationFailed("Refresh token not found in session.")
+        
+#         request.data["refresh"] = refresh_token
+#         response = super().post(request, *args, **kwargs)
+        
+#         if not response.data.get("access"):
+#             raise AuthenticationFailed("Refresh token is invalid or expired.")
+        
+#         request.session["access"] = response.data.get("access")
+#         request.session.save()
+#         response.data["sessionid"] = request.session.session_key
+#         return response
+
+# # @method_decorator(csrf_protect, name='dispatch')
+# class CSRFTokenVerifyView(TokenVerifyView):
+#     pass
+
+# class CSRFTokenView(APIView):
+#     serializer_class = None
+#     permission_classes = [AllowAny]
+    
+#     @csrf_exempt
+#     def get(self, request, *args, **kwargs):
+#         csrf_token = get_token(request)
+#         return Response({"csrfToken": csrf_token})
+
+# class RetrieveTokenView(APIView):
+#     serializer_class = None
+#     permission_classes = [AllowAny]
+    
+#     @csrf_exempt
+#     def get(self, request, *args, **kwargs):
+#         sessionid = request.session.session_key
+#         print(sessionid)
+        
+#         if not sessionid:
+#             return Response({"error": "Session ID not found."}, status=status.HTTP_400_BAD_REQUEST)
+        
+#         try:
+#             session = session.objects.get(session_key=sessionid)
+#             session_data = session.get_decoded()
+            
+#             # Retrieve tokens
+#             access_token = session_data.get("access")
+#             refresh_token = session_data.get("refresh")
+            
+#             if not access_token or not refresh_token:
+#                 return Response({"error": "Tokens not found in session."}, status=status.HTTP_400_BAD_REQUEST)
+            
+#             return Response({
+#                 "access_token": access_token,
+#                 "refresh_token": refresh_token,
+#                 "sessionId": sessionid
+#             })
+        
+#         except Session.DoesNotExist:
+#             return Response({"error": "Session not found."}, status=status.HTTP_400_BAD_REQUEST)

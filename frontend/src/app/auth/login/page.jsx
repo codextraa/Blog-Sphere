@@ -10,11 +10,6 @@ import logoImg from '@/icons/circle_design.svg';
 export default function loginPage () {
   const [state, formAction] = useActionState(loginUser, { errors: null });
 
-  if (state.success) {
-    // Redirect the user to /sphere
-    window.location.href = '/sphere';
-  }
-
   return (
     <div className={classes.login_container}>
         {/* <div className={classes.logo}>

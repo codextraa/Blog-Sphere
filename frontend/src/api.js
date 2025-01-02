@@ -40,15 +40,15 @@ api.interceptors.request.use(request => {
 //   }
 // };
 
-export const retrieveTokenId = async () => {
-  try {
-    const response = await api.get('retrieve-token/');
-    return response.data.sessionId;
-  } catch (error) {
-    console.error('Error retrieving session ID:', error);
-    return null;
-  }
-}
+// export const retrieveTokenId = async () => {
+//   try {
+//     const response = await api.get('retrieve-token/');
+//     return response.data.sessionId;
+//   } catch (error) {
+//     console.error('Error retrieving session ID:', error);
+//     return null;
+//   }
+// }
 
 //API Endpoints
 export const tokenLogin = async (credentials) => {
@@ -56,9 +56,45 @@ export const tokenLogin = async (credentials) => {
   return api.post('token/', credentials);
 };
 
-export const tokenRefresh = async () => {
-  // csrfToken = await fetchCsrfToken();
-  return api.post('token/refresh/');
+// export const tokenRefresh = async (refresh) => {
+//   // csrfToken = await fetchCsrfToken();
+//   // return api.post('token/refresh/', { refresh:token });
+//   const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json', // Ensure correct content type
+//     },
+//     body: JSON.stringify({ refresh }), // Send token in the body with the correct key
+//   });
+
+//   console.log("response from tokenRefresh", response)
+//   return response;
+// };
+
+export const tokenRefresh = async (refresh) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', // Ensure correct content type
+      },
+      body: JSON.stringify({ refresh }), // Send token in the body with the correct key
+    });
+
+    if (!response.ok) {
+      // Handle HTTP errors (e.g., 401 or 400 responses)
+      const errorData = await response.json();
+      console.error("Error refreshing token:", errorData);
+      throw new Error(errorData.detail || 'Failed to refresh token');
+    }
+
+    const data = await response.json();
+    // console.log("Response from tokenRefresh:", data);
+    return data; // Return the parsed JSON response
+  } catch (error) {
+    console.error("Error in tokenRefresh:", error);
+    throw error; // Rethrow the error for further handling
+  }
 };
 
 export const tokenVerify = async (token) => {

@@ -1,6 +1,5 @@
 import Credentials from 'next-auth/providers/credentials';
-import { tokenLogin } from './api';
-import { setSessionId } from './utils/session';
+import { tokenLogin, tokenRefresh } from './api';
 import Github from 'next-auth/providers/github';
 import Google from 'next-auth/providers/google';
 import Facebook from 'next-auth/providers/facebook';
@@ -29,9 +28,12 @@ const authOptions = {
           const response = await tokenLogin({ email, password });
 
           if (response.data) {
-            const { sessionId, access, refresh } = response.data;
+            const { access, refresh } = response.data;
 
-            return { sessionId, access, refresh };
+            return {
+              accessToken: access,
+              refreshToken: refresh
+            };
           };
           
           throw new Error('Invalid credentials');
@@ -43,5 +45,22 @@ const authOptions = {
     }),
   ],
 };
+
+export const refresh_token = async (token) => {
+  try {
+    const response = await tokenRefresh(token.refreshToken);
+
+    return {
+      ...token,
+      accessToken: response.access,
+      refreshToken: response.refresh,
+      accessTokenExpires: Math.floor(Date.now() / 1000) + 10,
+      refreshTokenExpires: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+    };
+  } catch (error) {
+    console.error("Failed to refresh token:", error);
+    return null; // Returning null invalidates the session
+  }
+}
 
 export default authOptions;
