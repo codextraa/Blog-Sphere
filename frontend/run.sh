@@ -1,7 +1,7 @@
 #!/bin/sh
 export INFISICAL_TOKEN=$(cat /run/secrets/infisical_token)
 cd /run/secrets
-infisical run --path="/JWT-django-rest/frontend" -- sh -c '
+infisical run --path="/Sphere/frontend" -- sh -c '
     cd /app
     
     # Handle local CA certificate if provided
