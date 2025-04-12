@@ -1,7 +1,7 @@
 #!/bin/sh
 export INFISICAL_TOKEN=$(cat /run/secrets/infisical_token)
 cd /run/secrets
-infisical run --path="/JWT-django-rest/backend" -- sh -c '
+infisical run --path="/Sphere/backend" -- sh -c '
   cd /app &&
   
   # Test PostgreSQL connection with retry and fallback
