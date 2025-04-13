@@ -1,5 +1,3 @@
-from django.contrib import admin
-
 # Register your models here.
 """Admin registration for blog api."""
 
@@ -21,7 +19,15 @@ class UserAdmin(BaseUserAdmin):
         (None, {"fields": ("email", "username", "password", "slug", "auth_provider")}),
         (
             "Personal_info",
-            {"fields": ("first_name", "last_name", "phone_number", "profile_img")},
+            {
+                "fields": (
+                    "first_name",
+                    "last_name",
+                    "strikes",
+                    "phone_number",
+                    "profile_img",
+                )
+            },
         ),
         (
             "Permissions",
@@ -31,6 +37,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_staff",
                     "is_email_verified",
                     "is_phone_verified",
+                    "is_noti_on",
                     "failed_login_attempts",
                     "last_failed_login_time",
                     "groups",

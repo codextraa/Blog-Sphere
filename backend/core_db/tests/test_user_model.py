@@ -1,5 +1,7 @@
 """Test Cases for User"""
 
+# pylint: skip-file
+
 import os, io
 from django.conf import settings
 from django.test import TestCase
@@ -39,6 +41,8 @@ class UserModelTests(TestCase):
         self.assertIn(
             default_group, user.groups.all()
         )  # checking if group signal is working
+        self.assertEqual(user.is_noti_on, True)  # checking if notification is on
+        self.assertEqual(user.strikes, 0)  # checking if strikes is 0
 
     def test_creating_admin_user_with_email(self):
         """Test Creating a user with an email is successful"""
@@ -207,6 +211,28 @@ class UserModelTests(TestCase):
         user.save()
 
         self.assertEqual(user.slug, slug)
+
+    def test_strikes_max_value_validation(self):
+        """Test that strikes exceeding MAX_STRIKES raises a ValidationError."""
+        self.user = get_user_model().objects.create_user(
+            email="test@example.com",
+            password="Django@123",
+        )
+        max_strikes = getattr(settings, "MAX_STRIKES", 3)
+        self.user.strikes = max_strikes
+        try:
+            self.user.full_clean()
+            self.user.save()
+        except ValidationError as e:
+            self.fail(f"Validation failed unexpectedly with error: {e}")
+
+        self.user.strikes = max_strikes + 1
+        with self.assertRaises(ValidationError) as context:
+            self.user.full_clean()
+
+        self.assertIn(
+            "Ensure this value is less than or equal to 3", str(context.exception)
+        )
 
 
 class UserModelImageTests(TestCase):

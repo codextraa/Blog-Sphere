@@ -4,13 +4,14 @@ import re
 import secrets
 import string
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import (
     BaseUserManager,
     AbstractBaseUser,
     PermissionsMixin,
 )
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email, RegexValidator
+from django.core.validators import validate_email, RegexValidator, MaxValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 
 
@@ -64,9 +65,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         ("email", "Email"),
         ("google", "Google"),
         ("facebook", "Facebook"),
-        ("instagram", "Instagram"),
-        ("twitter", "Twitter"),
-        ("linkedin", "LinkedIn"),
         ("github", "GitHub"),
     ]
     email = models.EmailField(max_length=255, unique=True)
@@ -89,10 +87,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     profile_img = models.ImageField(
         upload_to="profile_images/", blank=True, null=True, max_length=500
     )
+    strikes = models.IntegerField(
+        default=0,
+        validators=[MaxValueValidator(getattr(settings, "MAX_STRIKES", 3))],
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
+    is_noti_on = models.BooleanField(default=True)
     failed_login_attempts = models.IntegerField(default=0)
     last_failed_login_time = models.DateTimeField(blank=True, null=True)
     auth_provider = models.CharField(
