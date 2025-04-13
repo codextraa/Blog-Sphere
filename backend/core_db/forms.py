@@ -36,7 +36,7 @@ class CustomUserCreationForm(UserCreationForm):
         if password1 != password2:
             raise ValidationError("Passwords do not match.")
 
-        if (
+        if (  # pylint: disable= R0801
             len(password1) < 8
             or not re.search(r"[a-z]", password1)
             or not re.search(r"[A-Z]", password1)
