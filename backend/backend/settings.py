@@ -50,6 +50,9 @@ else:
     BACKEND_URL = os.getenv("HTTP_BACKEND_URL")
     FRONTEND_URL = os.getenv("HTTP_FRONTEND_URL")
 
+# ACCOUNT STRIKE
+MAX_STRIKES = 3
+
 # Application definition
 
 APP_NAME = os.getenv("APP_NAME")
@@ -212,9 +215,6 @@ CACHES = {
 AUTHENTICATION_BACKENDS = (
     "social_core.backends.google.GoogleOAuth2",
     "social_core.backends.facebook.FacebookOAuth2",
-    # 'social_core.backends.instagram.InstagramOAuth2',
-    # 'social_core.backends.twitter.TwitterOAuth',
-    # 'social_core.backends.linkedin.LinkedinOAuth2',
     "social_core.backends.github.GithubOAuth2",
     "django.contrib.auth.backends.ModelBackend",
 )
@@ -250,15 +250,6 @@ SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
 
 SOCIAL_AUTH_GITHUB_KEY = os.getenv("GITHUB_CLIENT_ID")
 SOCIAL_AUTH_GITHUB_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
-
-# SOCIAL_AUTH_INSTAGRAM_KEY = '<INSTAGRAM_CLIENT_ID>' # business app required
-# SOCIAL_AUTH_INSTAGRAM_SECRET = '<INSTAGRAM_CLIENT_SECRET>'
-
-# SOCIAL_AUTH_TWITTER_KEY = '<TWITTER_API_KEY>' # privacy policy link required
-# SOCIAL_AUTH_TWITTER_SECRET = '<TWITTER_API_SECRET>'
-
-# SOCIAL_AUTH_LINKEDIN_KEY = '<LINKEDIN_CLIENT_ID>' # LinkedIn page required
-# SOCIAL_AUTH_LINKEDIN_SECRET = '<LINKEDIN_CLIENT_SECRET>'
 
 # Twilio Settings
 
