@@ -34,6 +34,7 @@ from .serializers import (
     UserSerializer,
     UserImageSerializer,
     UserListSerializer,
+    UserAdminListSerializer,
     UserActionSerializer,
     RecaptchaSerializer,
     LoginSerializer,
@@ -1725,7 +1726,7 @@ class UserViewSet(ModelViewSet):
         """Permission for CRUD operations."""
         if self.action == "create":  # No permission while creating user
             permission_classes = [AllowAny]
-        elif self.action == "deactivate_user":  # Only Admins are allowed
+        elif self.action == "deactivate_user":  # Users and Admins are allowed
             permission_classes = [IsAuthenticated]
         elif self.action in ("activate_user", "delete"):  # Only Admins are allowed
             permission_classes = [IsAuthenticated, IsAdminUser]
@@ -1736,11 +1737,15 @@ class UserViewSet(ModelViewSet):
     def get_serializer_class(self):
         """Return the serializer class for the action."""
         if self.action == "list":  # List of users handled with different serializer
+            if getattr(self.request.user, "is_staff"):
+                return UserAdminListSerializer
             return UserListSerializer
         if self.action in (
             "deactivate_user",
             "activate_user",
-        ):  # Deactivation handled with different serializer
+            "strike_user",
+            "unstrike_user",
+        ):  # Deactivation, activation and strike will be handled with different serializer
             return UserActionSerializer
         if self.action == "upload_image":  # Image handled with different serializer
             return UserImageSerializer
@@ -1769,9 +1774,29 @@ class UserViewSet(ModelViewSet):
 
     @extend_schema(
         summary="Get All Users List",
-        description="List of all users using Pagination and Filters.",
+        description=(
+            "List of all users using Pagination and Filters. "
+            "Admins (is_staff=True) receive extended details, "
+            "while regular users receive basic details."
+        ),
         responses={
-            200: UserListSerializer,
+            200: {
+                "description": "Successful response with user list",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/UserAdminListSerializer"
+                                },  # For admins
+                                {
+                                    "$ref": "#/components/schemas/UserListSerializer"
+                                },  # For regular users
+                            ]
+                        }
+                    }
+                },
+            },
             400: OpenApiResponse(
                 description="Bad Request - Invalid parameters",
                 response={
@@ -2076,6 +2101,7 @@ class UserViewSet(ModelViewSet):
 
         if (
             "slug" in request.data  # pylint: disable=R0916
+            or "strikes" in request.data
             or "is_email_verified" in request.data
             or "is_phone_verified" in request.data
             or "is_active" in request.data
@@ -2618,6 +2644,270 @@ class UserViewSet(ModelViewSet):
 
             return Response(
                 {"success": f"User {user_to_activate.email} has been reactivated."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:  # pylint: disable=W0718
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        summary="Strike User",
+        description="Strike a user for bad behavior",
+        responses={
+            200: OpenApiResponse(
+                description="Strike successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "string",
+                            "example": [
+                                (
+                                    "User {user_to_strike.email} has been "
+                                    "striked {settings.MAX_STRIKES} times. "
+                                    "User {user_to_strike.email} has been deactivated."
+                                ),
+                                "User example.com has been striked.",
+                            ],
+                        }
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "string",
+                            "example": [
+                                (
+                                    "User example.com is already striked 3 times. "
+                                    "You cannot strike again."
+                                ),
+                                "Cannot strike a deactivated user.",
+                            ],
+                        }
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to strike users.",
+                                "You cannot strike yourself.",
+                                "Only superusers can strike staff users.",
+                                "You cannot strike a superuser.",
+                            ],
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        },
+    )
+    @method_decorator(csrf_protect)
+    @action(detail=True, methods=["PATCH"], url_path="strike-user")
+    def strike_user(self, request, pk=None):  # pylint: disable=unused-argument, R0911
+        """Strike a user (only staff and superuser can do this)"""
+        try:
+            user_to_strike = self.get_object()
+            current_user = self.request.user
+
+            if not user_to_strike.is_active:
+                return Response(
+                    {"error": "Cannot strike a deactivated user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if user_to_strike.strikes >= 3:
+                return Response(
+                    {
+                        "error": (
+                            "User is already striked 3 times. "
+                            "You cannot strike again."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not (current_user.is_superuser or current_user.is_staff):
+                return Response(
+                    {"error": "You do not have permission to strike users."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_strike == current_user:
+                return Response(
+                    {"error": "You cannot strike yourself."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_strike.is_staff and not current_user.is_superuser:
+                return Response(
+                    {"error": "Only superusers can strike staff users."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_strike.is_superuser:
+                return Response(
+                    {"error": "You cannot strike a superuser."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            user_to_strike.strikes += 1
+            user_to_strike.save()
+
+            if user_to_strike.strikes == settings.MAX_STRIKES:
+                user_to_strike.is_active = False
+                user_to_strike.save()
+
+                return Response(
+                    {
+                        "success": (
+                            f"User {user_to_strike.email} has been striked {settings.MAX_STRIKES}"
+                            f" times. User {user_to_strike.email} has been deactivated."
+                        )
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            return Response(
+                {"success": f"User {user_to_strike.email} has been striked."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:  # pylint: disable=W0718
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        summary="Unstrike User",
+        description="Unstrike a user for good behavior",
+        responses={
+            200: OpenApiResponse(
+                description="Unstrike successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "string",
+                            "example": "User example.com has been unstriked.",
+                        }
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "string",
+                            "example": [
+                                (
+                                    "User example.com does not have any strikes. "
+                                    "You cannot unstrike again."
+                                ),
+                                "Cannot unstrike a deactivated user.",
+                            ],
+                        }
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to unstrike users.",
+                                "You cannot unstrike yourself.",
+                                "Only superusers can unstrike staff users.",
+                            ],
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        },
+    )
+    @method_decorator(csrf_protect)
+    @action(detail=True, methods=["PATCH"], url_path="unstrike-user")
+    def unstrike_user(self, request, pk=None):  # pylint: disable=unused-argument, R0911
+        """Unstrike a user (only staff and superuser can do this)"""
+        try:
+            user_to_unstrike = self.get_object()
+            current_user = self.request.user
+
+            if not user_to_unstrike.is_active:
+                return Response(
+                    {"error": "Cannot unstrike a deactivated user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if user_to_unstrike.strikes == 0:
+                return Response(
+                    {
+                        "error": (
+                            "User does not have any strikes. "
+                            "You cannot unstrike again."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not (current_user.is_superuser or current_user.is_staff):
+                return Response(
+                    {"error": "You do not have permission to unstrike users."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_unstrike == current_user:
+                return Response(
+                    {"error": "You cannot unstrike yourself."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_unstrike.is_staff and not current_user.is_superuser:
+                return Response(
+                    {"error": "Only superusers can unstrike staff users."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            user_to_unstrike.strikes -= 1
+            user_to_unstrike.save()
+
+            return Response(
+                {"success": f"User {user_to_unstrike.email} has been unstriked."},
                 status=status.HTTP_200_OK,
             )
 

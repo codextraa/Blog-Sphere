@@ -12,7 +12,6 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 APP_NAME = settings.APP_NAME
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
