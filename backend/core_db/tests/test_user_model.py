@@ -42,6 +42,7 @@ class UserModelTests(TestCase):
             default_group, user.groups.all()
         )  # checking if group signal is working
         self.assertEqual(user.is_noti_on, True)  # checking if notification is on
+        self.assertEqual(user.is_two_fa, True)  # checking if 2FA is on
         self.assertEqual(user.strikes, 0)  # checking if strikes is 0
 
     def test_creating_admin_user_with_email(self):

@@ -23,6 +23,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "first_name",
                     "last_name",
+                    "bio",
                     "strikes",
                     "phone_number",
                     "profile_img",
@@ -38,6 +39,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_email_verified",
                     "is_phone_verified",
                     "is_noti_on",
+                    "is_two_fa",
                     "failed_login_attempts",
                     "last_failed_login_time",
                     "groups",

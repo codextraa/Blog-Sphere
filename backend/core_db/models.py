@@ -83,6 +83,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
     phone_number = PhoneNumberField(unique=True, blank=True, null=True)
     profile_img = models.ImageField(
         upload_to="profile_images/", blank=True, null=True, max_length=500
@@ -96,6 +97,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
     is_noti_on = models.BooleanField(default=True)
+    is_two_fa = models.BooleanField(default=True)
     failed_login_attempts = models.IntegerField(default=0)
     last_failed_login_time = models.DateTimeField(blank=True, null=True)
     auth_provider = models.CharField(
