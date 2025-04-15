@@ -235,6 +235,21 @@ class UserModelTests(TestCase):
             "Ensure this value is less than or equal to 3", str(context.exception)
         )
 
+    def test_bio_max_value_validation(self):
+        """Test that a bio exceeding 150 characters raises a ValidationError."""
+        invalid_bio = "x" * 151  # 151 characters, should fail
+        with self.assertRaises(ValidationError) as context:
+            get_user_model().objects.create_user(
+                email="test@example.com",
+                password="Django@123",
+                bio=invalid_bio,
+            )
+
+        self.assertIn(
+            "Ensure this value has at most 150 characters (it has 151).",
+            str(context.exception),
+        )
+
 
 class UserModelImageTests(TestCase):
     """Testing Image upload."""

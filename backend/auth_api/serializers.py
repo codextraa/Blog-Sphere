@@ -72,8 +72,8 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ("id", "email", "username", "first_name", "last_name")
-        read_only_fields = ("id", "email", "username", "first_name", "last_name")
+        fields = ("id", "email", "username", "first_name", "last_name", "bio")
+        read_only_fields = ("id", "email", "username", "first_name", "last_name", "bio")
 
 
 class UserAdminListSerializer(serializers.ModelSerializer):
@@ -115,6 +115,7 @@ class UserSerializer(serializers.ModelSerializer):
             "username",
             "first_name",
             "last_name",
+            "bio",
             "phone_number",
             "profile_img",
             "strikes",
@@ -125,6 +126,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_email_verified",
             "is_phone_verified",
             "is_noti_on",
+            "is_two_fa",
         )
         read_only_fields = (
             "id",
