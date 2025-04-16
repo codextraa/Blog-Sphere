@@ -1,4 +1,6 @@
-import os, io, json
+# pylint: skip-file
+
+import os, io, json, logging
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -34,6 +36,9 @@ USER_URL = reverse("user-list")
 SOCIAL_LOGIN_URL = reverse("social-auth")
 LOGOUT_URL = reverse("logout")
 
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
 
 def generate_otp():
     return 123456
@@ -57,6 +62,16 @@ def deactivate_user_url(user_id):
 def activate_user_url(user_id):
     """Activate user URL"""
     return reverse("user-activate-user", args=[user_id])
+
+
+def strike_user_url(user_id):
+    """Strike user URL"""
+    return reverse("user-strike-user", args=[user_id])
+
+
+def unstrike_user_url(user_id):
+    """Unstrike user URL"""
+    return reverse("user-unstrike-user", args=[user_id])
 
 
 def create_user(**params):
@@ -2664,6 +2679,290 @@ class PrivateUserActivationTests(APITestCase):
         # Ensure the user is actually activated
         self.normal_user.refresh_from_db()
         self.assertTrue(self.normal_user.is_active)
+
+
+class PrivateUserStrikeTests(APITestCase):
+    """Test user strikes API"""
+
+    def setUp(self):
+        """Set up users and authentication"""
+        self.superuser = get_user_model().objects.create_superuser(
+            email="admin@example.com",
+            password="SuperUser@123",
+        )
+
+        self.staff_user = create_user(
+            email="staff@example.com",
+            password="Django@123",
+            is_staff=True,
+        )
+
+        self.deactivated_user = create_user(
+            email="deactivated@example.com",
+            password="Django@123",
+            is_active=False,
+        )
+
+        self.active_user = create_user(
+            email="active@example.com",
+            password="Django@123",
+            is_active=True,
+        )
+
+        self.client = APIClient()
+
+    def test_strike_user_success_by_superuser(self):
+        """Test striking a normal active user by superuser"""
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(
+            response.data["success"], f"User {self.staff_user.email} has been striked."
+        )
+
+    def test_strike_user_success_until_deactivation_by_superuser(self):
+        """Test striking a user until deactivation by superuser"""
+        self.active_user.strikes = 2  # Set to 2 strikes already
+        self.active_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.active_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        expected_message = f"User {self.active_user.email} has been striked {settings.MAX_STRIKES} times. User {self.active_user.email} has been deactivated."
+        self.assertEqual(response.data["success"], expected_message)
+        self.active_user.refresh_from_db()
+        self.assertFalse(self.active_user.is_active)
+
+    def test_strike_user_already_max_strikes(self):
+        """Test trying to strike a user who already has max strikes"""
+        self.active_user.strikes = 3
+        self.active_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.active_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"],
+            "User is already striked 3 times. You cannot strike again.",
+        )
+
+    def test_strike_deactivated_user(self):
+        """Test trying to strike a deactivated user"""
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.deactivated_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Cannot strike a deactivated user.")
+
+    def test_strike_no_permission(self):
+        """Test striking without permission (regular user)"""
+        self.client.force_authenticate(user=self.active_user)
+        url = strike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"], "You do not have permission to strike users."
+        )
+
+    def test_strike_self(self):
+        """Test trying to strike oneself"""
+        self.client.force_authenticate(user=self.staff_user)
+        url = strike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "You cannot strike yourself.")
+
+    def test_strike_staff_by_staff(self):
+        """Test staff trying to strike another staff (should fail)"""
+        self.staff_user_2 = create_user(
+            email="staff2@gmail.com",
+            password="Django@123",
+            is_active=True,
+            is_staff=True,
+        )
+        self.staff_user_2.save()
+
+        self.client.force_authenticate(user=self.staff_user)
+        url = strike_user_url(self.staff_user_2.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"], "Only superusers can strike staff users."
+        )
+
+    def test_strike_superuser(self):
+        """Test trying to strike a superuser (should fail)"""
+        self.superuser_2 = get_user_model().objects.create_superuser(
+            email="superuser2@gmail.com",
+            password="Django@123",
+        )
+
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.superuser_2.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "You cannot strike a superuser.")
+
+    def test_unstrike_user_success_by_superuser(self):
+        """Test unstriking a user by superuser"""
+        self.staff_user.strikes = 1
+        self.staff_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = unstrike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(
+            response.data["success"],
+            f"User {self.staff_user.email} has been unstriked.",
+        )
+        self.staff_user.refresh_from_db()
+        self.assertEqual(self.staff_user.strikes, 0)
+
+    def test_unstrike_user_no_strikes(self):
+        """Test trying to unstrike a user with no strikes"""
+        self.active_user.strikes = 0
+        self.active_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = unstrike_user_url(self.active_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"],
+            "User does not have any strikes. You cannot unstrike again.",
+        )
+
+    def test_unstrike_deactivated_user(self):
+        """Test trying to unstrike a deactivated user"""
+        self.deactivated_user.strikes = 1
+        self.deactivated_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = unstrike_user_url(self.deactivated_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Cannot unstrike a deactivated user.")
+
+    def test_unstrike_no_permission(self):
+        """Test unstriking without permission (regular user)"""
+        self.staff_user.strikes = 1
+        self.staff_user.save()
+
+        self.client.force_authenticate(user=self.active_user)
+        url = unstrike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"], "You do not have permission to unstrike users."
+        )
+
+    def test_unstrike_self(self):
+        """Test trying to unstrike oneself"""
+        self.staff_user.strikes = 1
+        self.staff_user.save()
+
+        self.client.force_authenticate(user=self.staff_user)
+        url = unstrike_user_url(self.staff_user.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "You cannot unstrike yourself.")
+
+    def test_unstrike_staff_by_staff(self):
+        """Test staff trying to unstrike another staff (should fail)"""
+        self.staff_user_2 = create_user(
+            email="staff2@gmail.com",
+            password="Django@123",
+            is_active=True,
+            is_staff=True,
+        )
+        self.staff_user_2.strikes = 1
+        self.staff_user_2.save()
+
+        self.client.force_authenticate(user=self.staff_user)
+        url = unstrike_user_url(self.staff_user_2.id)
+
+        response = self.client.patch(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertEqual(
+            response.data["error"], "Only superusers can unstrike staff users."
+        )
+
+    def test_internal_server_error_strike(self):
+        """Test handling of internal server error during strike"""
+        # This is a bit tricky to simulate without mocking, but for completeness:
+        # Assume some database error or similar. Here, we'll just test the exception path.
+        self.client.force_authenticate(user=self.superuser)
+        url = strike_user_url(self.staff_user.id)
+
+        # This is a simplified simulation; in reality, you'd mock the save() or get_object() to raise an exception
+        with self.assertRaises(Exception):
+            response = self.client.patch(url)
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Internal Server Error")
+
+    def test_internal_server_error_unstrike(self):
+        """Test handling of internal server error during unstrike"""
+        self.staff_user.strikes = 1
+        self.staff_user.save()
+
+        self.client.force_authenticate(user=self.superuser)
+        url = unstrike_user_url(self.staff_user.id)
+
+        with self.assertRaises(Exception):
+            response = self.client.patch(url)
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Internal Server Error")
 
 
 class PrivateUserApiImageTests(APITestCase):

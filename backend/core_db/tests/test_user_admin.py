@@ -2,15 +2,11 @@
 
 # pylint: skip-file
 
-import logging
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.conf import settings
-
-
-logger = logging.getLogger(__name__)
 
 
 class AdminSiteTests(TestCase):

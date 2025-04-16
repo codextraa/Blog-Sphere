@@ -72,8 +72,24 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ("id", "email", "username", "is_active", "is_staff")
-        read_only_fields = ("id", "email", "username", "is_active", "is_staff")
+        fields = ("id", "email", "username", "first_name", "last_name", "bio")
+        read_only_fields = ("id", "email", "username", "first_name", "last_name", "bio")
+
+
+class UserAdminListSerializer(serializers.ModelSerializer):
+    """List User Serializer"""
+
+    class Meta:
+        model = get_user_model()
+        fields = ("id", "email", "username", "is_active", "is_staff", "strikes")
+        read_only_fields = (
+            "id",
+            "email",
+            "username",
+            "is_active",
+            "is_staff",
+            "strikes",
+        )
 
 
 class UserActionSerializer(serializers.ModelSerializer):
@@ -99,14 +115,18 @@ class UserSerializer(serializers.ModelSerializer):
             "username",
             "first_name",
             "last_name",
+            "bio",
             "phone_number",
             "profile_img",
+            "strikes",
             "slug",
             "is_active",
             "is_staff",
             "is_superuser",
             "is_email_verified",
             "is_phone_verified",
+            "is_noti_on",
+            "is_two_fa",
         )
         read_only_fields = (
             "id",
