@@ -154,6 +154,13 @@ class UserSerializer(serializers.ModelSerializer):
                     {"username": "Username must be at least 6 characters long."}
                 )
 
+        bio = attrs.get("bio")
+        if bio:
+            if len(bio) > 150:
+                raise serializers.ValidationError(
+                    {"bio": "Bio must be at most 150 characters long."}
+                )
+
         attrs = super().validate(attrs)
 
         first_name = attrs.get("first_name")

@@ -1,4 +1,4 @@
-"""JWT User Model"""
+"""Blog User Model"""
 
 import re
 import secrets
@@ -11,7 +11,12 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email, RegexValidator, MaxValueValidator
+from django.core.validators import (
+    validate_email,
+    RegexValidator,
+    MinLengthValidator,
+    MaxValueValidator,
+)
 from phonenumber_field.modelfields import PhoneNumberField
 
 
@@ -78,7 +83,11 @@ class User(AbstractBaseUser, PermissionsMixin):
                 regex=r"^\S+$",  # No whitespace allowed
                 message="Username cannot contain spaces",
                 code="invalid_username",
-            )
+            ),
+            MinLengthValidator(
+                limit_value=6,
+                message="Username must be at least 6 characters long",
+            ),
         ],
     )
     first_name = models.CharField(max_length=50, blank=True, null=True)
