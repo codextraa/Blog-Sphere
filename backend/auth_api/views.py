@@ -30,6 +30,7 @@ from .renderers import ViewRenderer
 from .paginations import UserPagination
 from .filters import UserFilter
 from .utils import EmailOtp, EmailLink, PhoneOtp
+from .throttles import check_throttle_duration, start_throttle
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
@@ -50,6 +51,11 @@ from .serializers import (
     UpdateUserSerializer,
     SocialOAuthSerializer,
 )
+
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 
 def check_token_validity(request):
@@ -189,27 +195,6 @@ def create_otp(user_id, email, password):
         },
         status=status.HTTP_400_BAD_REQUEST,
     )
-
-
-def check_throttle_duration(self, request):
-    """
-    Check duration for throttling
-    """
-    throttle_durations = []
-    for throttle in self.get_throttles():
-        if not throttle.allow_request(request, self):
-            throttle_durations.append(throttle.wait())
-
-    return throttle_durations
-
-
-def start_throttle(self, throttle_durations, request):
-    # Filter out `None` values which may happen in case of config / rate
-    # changes, see #1438
-    durations = [duration for duration in throttle_durations if duration is not None]
-
-    duration = max(durations, default=None)
-    self.throttled(request, duration)
 
 
 class CSRFTokenView(APIView):
@@ -383,7 +368,7 @@ class LoginView(APIView):
             cached_id = None
 
         if throttle_durations and cached_id:
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Login to get an OTP or JWT token",
@@ -573,9 +558,12 @@ class LoginView(APIView):
                 # Generate OTP
                 response = create_otp(user.id, email, password)
                 return response
-            else:
-                token_view = TokenView.as_view()
-                return token_view(request, *args, **kwargs)
+            new_data = request.data.copy()
+            new_data["user_id"] = user.id
+            new_request = request._request  # pylint: disable=W0212
+            new_request.POST = new_data
+            token_view = TokenView.as_view()
+            return token_view(new_request, *args, **kwargs)
 
         except Exception as e:  # pylint: disable=W0718
             return Response(
@@ -601,7 +589,7 @@ class ResendOtpView(APIView):
         cached_id = cache.get(f"id_{request.data.get('user_id')}")
 
         if throttle_durations and cached_id:
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Resend OTP",
@@ -774,14 +762,14 @@ class TokenView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         """Post a request to TokenView. Verifies OTP and generates JWT tokens."""
         try:
+            user_id = request.data.pop("user_id", None)
+            user = check_user_id(user_id)
+
+            if isinstance(user, Response):
+                return user
+
             if user.is_two_fa:
-                user_id = request.data.pop("user_id", None)
                 otp_from_request = request.data.pop("otp", None)
-
-                user = check_user_id(user_id)
-
-                if isinstance(user, Response):
-                    return user
 
                 # Get email and password from the cache
                 email = cache.get(f"email_{user.id}")
@@ -812,11 +800,6 @@ class TokenView(TokenObtainPairView):
                 now() + timedelta(minutes=5)
             ).isoformat()
 
-            if user.is_two_fa:
-                # Delete cache entries
-                cache.delete(f"email_{user.id}")
-                cache.delete(f"password_{user.id}")
-
             user_role = get_user_role(user)
 
             response.data["user_role"] = user_role
@@ -827,8 +810,9 @@ class TokenView(TokenObtainPairView):
             response.data.pop("refresh")
 
             # Delete cache entries after successful login
-            cache.delete(f"email_{user.id}")
-            cache.delete(f"password_{user.id}")
+            if user.is_two_fa:
+                cache.delete(f"email_{user.id}")
+                cache.delete(f"password_{user.id}")
 
             return response
 
@@ -993,7 +977,7 @@ class EmailVerifyView(APIView):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Verify user's email address",
@@ -1225,7 +1209,7 @@ class PhoneVerifyView(APIView):
         throttle_durations = check_throttle_duration(self, request)
 
         if throttle_durations and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Send OTP to Phone",
@@ -1426,7 +1410,7 @@ class PasswordResetView(APIView):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Verify Password Reset Link",
@@ -1761,9 +1745,10 @@ class UserViewSet(ModelViewSet):
         """Permission for CRUD operations."""
         if self.action == "create":  # No permission while creating user
             permission_classes = [AllowAny]
-        elif self.action == "deactivate_user":  # Users and Admins are allowed
-            permission_classes = [IsAuthenticated]
-        elif self.action in ("activate_user", "delete"):  # Only Admins are allowed
+        elif self.action in (
+            "activate_user",
+            "delete",
+        ):  # Only Admins are allowed
             permission_classes = [IsAuthenticated, IsAdminUser]
         else:  # RUD operations need permissions
             permission_classes = [IsAuthenticated]
@@ -1802,7 +1787,7 @@ class UserViewSet(ModelViewSet):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Disallow PUT operation."""
@@ -1932,9 +1917,20 @@ class UserViewSet(ModelViewSet):
                                         "user with this email already exists.",
                                         "Enter a valid email address.",
                                     ],
-                                    "username": [
-                                        "user with this username already exists.",
-                                        "Username must be at least 6 characters long.",
+                                    "username": {
+                                        "base": [
+                                            "user with this username already exists.",
+                                            "Ensure this field has no more than 255 characters.",
+                                        ],
+                                        "short": "Username must be at least 6 characters long.",
+                                        "space": "Username cannot contain spaces.",
+                                        "special": (
+                                            "Username can only contain letters, numbers, "
+                                            "periods, underscores, hyphens, and @ signs."
+                                        ),
+                                    },
+                                    "bio": [
+                                        "Ensure this field has no more than 150 characters."
                                     ],
                                     "phone_number": [
                                         "The phone number entered is not valid."

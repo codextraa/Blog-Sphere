@@ -214,7 +214,7 @@ class UserModelTests(TestCase):
         self.assertEqual(user.slug, slug)
 
     def test_user_invalid_username(self):
-        """Test creating a user with an invalid username"""
+        """Test creating a user with an invalid username containing spaces"""
         email = "test@example.com"
         password = "Django@123"
         username = "invalid username"
@@ -238,7 +238,7 @@ class UserModelTests(TestCase):
             )
 
         self.assertIn(
-            "Username must be at most 255 characters long", str(context.exception)
+            "Username cannot be longer than 255 characters", str(context.exception)
         )
 
     def test_user_username_too_short(self):
@@ -254,6 +254,21 @@ class UserModelTests(TestCase):
 
         self.assertIn(
             "Username must be at least 6 characters long", str(context.exception)
+        )
+
+    def test_bio_max_value_validation(self):
+        """Test that a bio exceeding 150 characters raises a ValidationError."""
+        invalid_bio = "x" * 151  # 151 characters, should fail
+        with self.assertRaises(ValidationError) as context:
+            get_user_model().objects.create_user(
+                email="test@example.com",
+                password="Django@123",
+                bio=invalid_bio,
+            )
+
+        self.assertIn(
+            "Ensure this value has at most 150 characters (it has 151).",
+            str(context.exception),
         )
 
     def test_strikes_max_value_validation(self):
@@ -276,21 +291,6 @@ class UserModelTests(TestCase):
 
         self.assertIn(
             "Ensure this value is less than or equal to 3", str(context.exception)
-        )
-
-    def test_bio_max_value_validation(self):
-        """Test that a bio exceeding 150 characters raises a ValidationError."""
-        invalid_bio = "x" * 151  # 151 characters, should fail
-        with self.assertRaises(ValidationError) as context:
-            get_user_model().objects.create_user(
-                email="test@example.com",
-                password="Django@123",
-                bio=invalid_bio,
-            )
-
-        self.assertIn(
-            "Ensure this value has at most 150 characters (it has 151).",
-            str(context.exception),
         )
 
 

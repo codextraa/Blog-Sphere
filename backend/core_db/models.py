@@ -13,8 +13,6 @@ from django.contrib.auth.models import (
 from django.core.exceptions import ValidationError
 from django.core.validators import (
     validate_email,
-    RegexValidator,
-    MinLengthValidator,
     MaxValueValidator,
 )
 from phonenumber_field.modelfields import PhoneNumberField
@@ -78,17 +76,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         unique=True,
         blank=True,
         null=True,
-        validators=[
-            RegexValidator(
-                regex=r"^\S+$",  # No whitespace allowed
-                message="Username cannot contain spaces",
-                code="invalid_username",
-            ),
-            MinLengthValidator(
-                limit_value=6,
-                message="Username must be at least 6 characters long",
-            ),
-        ],
     )
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
@@ -118,6 +105,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
+
+    def _username_valid(self, username):
+        """Private method for testing valid username"""
+        if username:
+            if len(username) < 6:
+                raise ValidationError("Username must be at least 6 characters long.")
+            if len(username) > 255:
+                raise ValidationError("Username cannot be longer than 255 characters.")
+            if " " in username:
+                raise ValidationError("Username cannot contain spaces.")
+            if not re.match(r"^[a-zA-Z0-9._@-]+$", username):
+                raise ValidationError(
+                    "Username can only contain letters, numbers, "
+                    "periods, underscores, hyphens, and @ signs."
+                )
 
     def _pass_valid(self, password):
         """Private method for testing valid password"""
@@ -177,6 +179,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def save(self, *args, **kwargs):
         """Running Validators before saving"""
+        self._username_valid(self.username)
         self.full_clean()
         super().save(*args, **kwargs)
 

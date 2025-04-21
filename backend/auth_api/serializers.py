@@ -3,6 +3,11 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
 
 def validate_password(password):
     """Password Validation"""
@@ -22,6 +27,25 @@ def validate_password(password):
 
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         errors["special"] = "Password must contain at least one special character."
+
+    return errors
+
+
+def validate_username(username):
+    """Username Validation"""
+    errors = {}
+
+    if len(username) < 6:
+        errors["short"] = "Username must be at least 6 characters long."
+
+    if " " in username:
+        errors["space"] = "Username cannot contain spaces."
+
+    if not re.match(r"^[a-zA-Z0-9._@-]+$", username):
+        errors["special"] = (
+            "Username can only contain letters, numbers, "
+            "periods, underscores, hyphens, and @ signs."
+        )
 
     return errors
 
@@ -72,8 +96,24 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ("id", "email", "username", "first_name", "last_name", "bio")
-        read_only_fields = ("id", "email", "username", "first_name", "last_name", "bio")
+        fields = (
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+            "bio",
+            "profile_img",
+        )
+        read_only_fields = (
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+            "bio",
+            "profile_img",
+        )
 
 
 class UserAdminListSerializer(serializers.ModelSerializer):
@@ -133,6 +173,9 @@ class UserSerializer(serializers.ModelSerializer):
             "is_superuser",
             "is_email_verified",
             "is_phone_verified",
+            "failed_login_attempts",
+            "last_failed_login_time",
+            "auth_provider",
         )
         extra_kwargs = {
             "password": {"write_only": True, "style": {"input_type": "password"}}
@@ -149,17 +192,9 @@ class UserSerializer(serializers.ModelSerializer):
 
         username = attrs.get("username")
         if username:
-            if len(username) < 6:
-                raise serializers.ValidationError(
-                    {"username": "Username must be at least 6 characters long."}
-                )
-
-        bio = attrs.get("bio")
-        if bio:
-            if len(bio) > 150:
-                raise serializers.ValidationError(
-                    {"bio": "Bio must be at most 150 characters long."}
-                )
+            errors = validate_username(username)
+            if errors:
+                raise serializers.ValidationError({"username": errors})
 
         attrs = super().validate(attrs)
 
