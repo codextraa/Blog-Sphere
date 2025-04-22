@@ -2504,6 +2504,20 @@ class PrivateUserApiTests(APITestCase):
             json.dumps(response.data["phone_number"]),
         )
 
+    def test_admin_cannot_disable_two_fa(self):
+        """Test that admin cannot disable 2FA."""
+        staff_user = get_user_model().objects.create_user(
+            email="admin@example.com",
+            password="Admin@123",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=staff_user)
+        payload = {"is_two_fa": False}
+        response = self.client.patch(self.url, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Admins cannot deactivate 2FA.", response.data["error"])
+
     def test_put_method_not_allowed(self):
         """Test that PUT method is not allowed."""
         payload = {"first_name": "Should Fail"}

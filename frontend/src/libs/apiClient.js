@@ -36,29 +36,16 @@ export class ApiClient {
       }
     }
 
+    if (response.status >= 500) {
+      return { error: "Server error" }; // Server-side error
+    }
+
     if (response.status >= 400) {
       if (response.status === 401) {
         return {
           error:
             "Unauthorized. Please refresh the page. If this persists, login again.",
         };
-      }
-
-      if (response.status === 429) {
-        if (contentType.includes("application/json")) {
-          const errorResponse = await response.json();
-          const errorMessage = errorResponse.errors;
-
-          try {
-            const match = errorMessage.match(/(\d+) second(s)?/);
-            return {
-              error: `Validation already sent. Please try again in ${match[1]} seconds.`,
-            };
-          } catch (error) {
-            console.error("Error parsing error message:", error);
-            return { error: `Validation already sent. Please try again.` };
-          }
-        }
       }
 
       if (contentType.includes("application/json")) {
@@ -85,10 +72,6 @@ export class ApiClient {
       //   console.error('Error while reading the error response body:', err);
       //   return { error: 'Unexpected error occurred. Something went wrong' };
       // };
-    }
-
-    if (response.status >= 500) {
-      return { error: "Server error" }; // Server-side error
     }
 
     throw new Error("Unexpected error occurred.");

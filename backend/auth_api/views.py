@@ -2038,6 +2038,7 @@ class UserViewSet(ModelViewSet):
             or "is_phone_verified" in request.data
             or "is_active" in request.data
             or "is_two_fa" in request.data
+            or "is_noti_on" in request.data
         ):
             return Response(
                 {"error": "Forbidden fields cannot be updated."},

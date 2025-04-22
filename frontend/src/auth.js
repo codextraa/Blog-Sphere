@@ -2,9 +2,6 @@ import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import GitHubProvider from "next-auth/providers/github";
-// import LinkedInProvider from 'next-auth/providers/linkedin';
-// import TwitterProvider from 'next-auth/providers/twitter';
-// import InstagramProvider from 'next-auth/providers/instagram';
 import { socialLoginAction } from "./actions/authActions";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -26,29 +23,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
     }),
-    // LinkedInProvider({
-    //   clientId: process.env.LINKEDIN_CLIENT_ID,
-    //   clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-    // }),
-    // TwitterProvider({
-    //   clientId: process.env.TWITTER_CLIENT_ID,
-    //   clientSecret: process.env.TWITTER_CLIENT_SECRET,
-    // }),
-    // InstagramProvider({
-    //   clientId: process.env.INSTAGRAM_CLIENT_ID,
-    //   clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
-    // }),
   ],
   trustHost: process.env.NEXTAUTH_TRUSTED_HOST,
   baseUrl: process.env.NEXTAUTH_URL,
   callbacks: {
     /* eslint-disable-next-line no-unused-vars */
     async signIn({ user, account, profile, email, credentials }) {
-      // console.log('account', account);
-      // console.log('user', user);
-      // console.log('profile', profile);
-      // console.log('email', email);
-      // console.log('credentials', credentials);
       let result;
       if (account.provider === "google") {
         result = await socialLoginAction("google-oauth2", account.access_token);
@@ -74,6 +54,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
-    // Don't add anything else as the session is set by setSessionCookie using backend
   },
 });
