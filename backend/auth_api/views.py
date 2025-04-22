@@ -30,6 +30,7 @@ from .renderers import ViewRenderer
 from .paginations import UserPagination
 from .filters import UserFilter
 from .utils import EmailOtp, EmailLink, PhoneOtp
+from .throttles import check_throttle_duration, start_throttle
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
@@ -50,6 +51,11 @@ from .serializers import (
     UpdateUserSerializer,
     SocialOAuthSerializer,
 )
+
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 
 def check_token_validity(request):
@@ -189,27 +195,6 @@ def create_otp(user_id, email, password):
         },
         status=status.HTTP_400_BAD_REQUEST,
     )
-
-
-def check_throttle_duration(self, request):
-    """
-    Check duration for throttling
-    """
-    throttle_durations = []
-    for throttle in self.get_throttles():
-        if not throttle.allow_request(request, self):
-            throttle_durations.append(throttle.wait())
-
-    return throttle_durations
-
-
-def start_throttle(self, throttle_durations, request):
-    # Filter out `None` values which may happen in case of config / rate
-    # changes, see #1438
-    durations = [duration for duration in throttle_durations if duration is not None]
-
-    duration = max(durations, default=None)
-    self.throttled(request, duration)
 
 
 class CSRFTokenView(APIView):
@@ -383,24 +368,53 @@ class LoginView(APIView):
             cached_id = None
 
         if throttle_durations and cached_id:
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
-        summary="Login to get an OTP",
+        summary="Login to get an OTP or JWT token",
         description=(
-            "Authenticates the user with email and password. "
-            "If valid, an OTP is sent to the registered email."
+            "For 2fa: Authenticates the user with email and password. "
+            "If valid, an OTP is sent to the registered email. "
+            "For Non 2fa: Authenticates the user with email and password. "
+            "If valid, a JWT token is returned."
         ),
         request=LoginSerializer,
         responses={
             200: OpenApiResponse(
-                description="OTP sent successfully",
+                description="OTP sent successfully or JWT token received successfully",
                 response={
                     "type": "object",
                     "properties": {
-                        "success": {"type": "string", "example": "Email sent"},
-                        "otp": {"type": "boolean", "example": True},
-                        "user_id": {"type": "integer", "example": 1},
+                        "success": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                {
+                                    "success": {
+                                        "type": "string",
+                                        "example": "Email sent",
+                                    },
+                                    "otp": {"type": "boolean", "example": True},
+                                    "user_id": {"type": "integer", "example": 1},
+                                },
+                                {
+                                    "access_token_expiry": {
+                                        "type": "string",
+                                        "example": "2023-01-01T00:00:00Z",
+                                    },
+                                    "access": {
+                                        "type": "string",
+                                        "example": "JWT access token",
+                                    },
+                                    "refresh": {
+                                        "type": "string",
+                                        "example": "JWT refresh token",
+                                    },
+                                    "user_role": {"type": "string", "example": "Admin"},
+                                    "user_id": {"type": "integer", "example": 1},
+                                },
+                            ],
+                        },
                     },
                 },
             ),
@@ -540,10 +554,16 @@ class LoginView(APIView):
                 user.failed_login_attempts = 0
                 user.save()
 
-            # Generate OTP
-            response = create_otp(user.id, email, password)
-
-            return response
+            if user.is_two_fa:
+                # Generate OTP
+                response = create_otp(user.id, email, password)
+                return response
+            new_data = request.data.copy()
+            new_data["user_id"] = user.id
+            new_request = request._request  # pylint: disable=W0212
+            new_request.POST = new_data
+            token_view = TokenView.as_view()
+            return token_view(new_request, *args, **kwargs)
 
         except Exception as e:  # pylint: disable=W0718
             return Response(
@@ -569,7 +589,7 @@ class ResendOtpView(APIView):
         cached_id = cache.get(f"id_{request.data.get('user_id')}")
 
         if throttle_durations and cached_id:
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Resend OTP",
@@ -743,34 +763,35 @@ class TokenView(TokenObtainPairView):
         """Post a request to TokenView. Verifies OTP and generates JWT tokens."""
         try:
             user_id = request.data.pop("user_id", None)
-            otp_from_request = request.data.pop("otp", None)
-
             user = check_user_id(user_id)
 
             if isinstance(user, Response):
                 return user
 
-            # Get email and password from the cache
-            email = cache.get(f"email_{user.id}")
-            password = cache.get(f"password_{user.id}")
+            if user.is_two_fa:
+                otp_from_request = request.data.pop("otp", None)
 
-            if not email or not password:
-                return Response(
-                    {"error": "Session expired. Please login again."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                # Get email and password from the cache
+                email = cache.get(f"email_{user.id}")
+                password = cache.get(f"password_{user.id}")
 
-            # Verify OTP
-            otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
+                if not email or not password:
+                    return Response(
+                        {"error": "Session expired. Please login again."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-            if not otp_verify:
-                return Response(
-                    {"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                # Verify OTP
+                otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
 
-            # Set email and password in the request
-            request.data["email"] = email
-            request.data["password"] = password
+                if not otp_verify:
+                    return Response(
+                        {"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Set email and password in the request
+                request.data["email"] = email
+                request.data["password"] = password
 
             # Generate token
             response = super().post(request, *args, **kwargs)
@@ -778,9 +799,6 @@ class TokenView(TokenObtainPairView):
             response.data["access_token_expiry"] = (
                 now() + timedelta(minutes=5)
             ).isoformat()
-
-            cache.delete(f"email_{user.id}")
-            cache.delete(f"password_{user.id}")
 
             user_role = get_user_role(user)
 
@@ -792,8 +810,9 @@ class TokenView(TokenObtainPairView):
             response.data.pop("refresh")
 
             # Delete cache entries after successful login
-            cache.delete(f"email_{user.id}")
-            cache.delete(f"password_{user.id}")
+            if user.is_two_fa:
+                cache.delete(f"email_{user.id}")
+                cache.delete(f"password_{user.id}")
 
             return response
 
@@ -958,7 +977,7 @@ class EmailVerifyView(APIView):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Verify user's email address",
@@ -1190,7 +1209,7 @@ class PhoneVerifyView(APIView):
         throttle_durations = check_throttle_duration(self, request)
 
         if throttle_durations and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Send OTP to Phone",
@@ -1391,7 +1410,7 @@ class PasswordResetView(APIView):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     @extend_schema(
         summary="Verify Password Reset Link",
@@ -1726,19 +1745,26 @@ class UserViewSet(ModelViewSet):
         """Permission for CRUD operations."""
         if self.action == "create":  # No permission while creating user
             permission_classes = [AllowAny]
-        elif self.action == "deactivate_user":  # Users and Admins are allowed
-            permission_classes = [IsAuthenticated]
-        elif self.action in ("activate_user", "delete"):  # Only Admins are allowed
+        elif self.action in (
+            "activate_user",
+            "delete",
+        ):  # Only Admins are allowed
             permission_classes = [IsAuthenticated, IsAdminUser]
         else:  # RUD operations need permissions
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self):  # pylint: disable = R0911
         """Return the serializer class for the action."""
         if self.action == "list":  # List of users handled with different serializer
             if getattr(self.request.user, "is_staff"):
                 return UserAdminListSerializer
+            return UserListSerializer
+        if self.action == "retrieve":
+            user_id = self.kwargs.get("pk")
+            is_own_info = str(self.request.user.id) == user_id
+            if is_own_info or self.request.user.is_superuser:
+                return UserSerializer
             return UserListSerializer
         if self.action in (
             "deactivate_user",
@@ -1761,7 +1787,7 @@ class UserViewSet(ModelViewSet):
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            start_throttle(self, throttle_durations, request)
+            start_throttle(throttle_durations, request)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Disallow PUT operation."""
@@ -1891,9 +1917,20 @@ class UserViewSet(ModelViewSet):
                                         "user with this email already exists.",
                                         "Enter a valid email address.",
                                     ],
-                                    "username": [
-                                        "user with this username already exists.",
-                                        "Username must be at least 6 characters long.",
+                                    "username": {
+                                        "base": [
+                                            "user with this username already exists.",
+                                            "Ensure this field has no more than 255 characters.",
+                                        ],
+                                        "short": "Username must be at least 6 characters long.",
+                                        "space": "Username cannot contain spaces.",
+                                        "special": (
+                                            "Username can only contain letters, numbers, "
+                                            "periods, underscores, hyphens, and @ signs."
+                                        ),
+                                    },
+                                    "bio": [
+                                        "Ensure this field has no more than 150 characters."
                                     ],
                                     "phone_number": [
                                         "The phone number entered is not valid."
@@ -1995,10 +2032,13 @@ class UserViewSet(ModelViewSet):
             )
 
         if (
-            "slug" in request.data
+            "slug" in request.data  # pylint: disable=R0916
+            or "strikes" in request.data
             or "is_email_verified" in request.data
             or "is_phone_verified" in request.data
             or "is_active" in request.data
+            or "is_two_fa" in request.data
+            or "is_noti_on" in request.data
         ):
             return Response(
                 {"error": "Forbidden fields cannot be updated."},
@@ -2090,6 +2130,13 @@ class UserViewSet(ModelViewSet):
                 {"error": "Password reset cannot be done without verification link."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        if "is_two_fa" in request.data:
+            if current_user.is_staff:
+                return Response(
+                    {"error": "Admins cannot deactivate 2FA."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         if "profile_img" in request.data:
             return Response(

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { DEFAULT_LOGIN_REDIRECT } from "@/route";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { loginAction, recaptchaVerifyAction } from "@/actions/authActions";
@@ -138,6 +139,10 @@ export default function LoginForm() {
         sessionStorage.setItem("otpRequired", "true");
         sessionStorage.setItem("otpExpiry", Date.now() + 600000); // 10 minutes
         router.push(`/auth/otp`);
+      } else if (result.success) {
+        setSuccess(result.success);
+        setError("");
+        router.push(`${DEFAULT_LOGIN_REDIRECT}`);
       } else {
         setError("Something went wrong, could not send OTP. Try again");
       }

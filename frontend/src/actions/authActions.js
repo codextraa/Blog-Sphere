@@ -63,7 +63,20 @@ export async function loginAction(formData) {
 
   try {
     // Make the login request to the backend API
-    return await login(credentials);
+    const response = await login(credentials);
+
+    if (
+      response.access_token &&
+      response.refresh_token &&
+      response.user_role &&
+      response.user_id &&
+      response.access_token_expiry
+    ) {
+      await setSessionCookie(response);
+      return { success: "Login successful" };
+    } else {
+      return response;
+    }
   } catch (error) {
     // Handle any network or unexpected error
     console.error(error);
