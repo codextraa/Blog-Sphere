@@ -1,6 +1,6 @@
 # pylint: skip-file
 
-import os, io, json, logging
+import os, io, json
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -11,7 +11,6 @@ from django.utils.timezone import now, timedelta
 from PIL import Image
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.exceptions import Throttled
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
@@ -21,6 +20,11 @@ from rest_framework.test import APITestCase, APIClient
 from social_core.exceptions import AuthException
 from datetime import datetime, timedelta
 from unittest.mock import patch
+
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 
 CSRF_TOKEN_URL = reverse("csrf-token")
@@ -35,9 +39,6 @@ RESET_PASSWORD_URL = reverse("password-reset")
 USER_URL = reverse("user-list")
 SOCIAL_LOGIN_URL = reverse("social-auth")
 LOGOUT_URL = reverse("logout")
-
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
 
 
 def generate_otp():
@@ -217,17 +218,10 @@ class LoginViewTests(APITestCase):
         user.last_failed_login_time = now()
         user.save()
 
-    @patch("auth_api.views.create_otp")
-    def test_login_success(self, mock_create_otp):
+    def test_2fa_enabled_login_success(self):
         """
         Test successful login returns 200 OK and the expected data.
         """
-        # Return a proper Response object instead of a MagicMock
-        mock_create_otp.return_value = Response(
-            {"success": "Email sent", "otp": True, "user_id": self.test_user.id},
-            status=status.HTTP_200_OK,
-        )
-
         data = {"email": "test@example.com", "password": "TestP@ssw0rd"}
         response = self.client.post(self.url, data, format="json")
 
@@ -235,6 +229,27 @@ class LoginViewTests(APITestCase):
         self.assertEqual(response.data["success"], "Email sent")
         self.assertEqual(response.data["otp"], True)
         self.assertEqual(response.data["user_id"], self.test_user.id)
+
+    def test_2fa_disabled_login_success(self):
+        """
+        Test successful login returns 200 OK and the expected data.
+        """
+        self.test_user = create_user(
+            email="test@example2.com",
+            password="TestP@ssw0rd",
+            is_active=True,
+            is_email_verified=True,
+            is_two_fa=False,
+        )
+        data = {"email": "test@example2.com", "password": "TestP@ssw0rd"}
+        response = self.client.post(self.url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access_token_expiry", response.data)
+        self.assertIn("access_token", response.data)
+        self.assertIn("refresh_token", response.data)
+        self.assertIn("user_role", response.data)
+        self.assertIn("user_id", response.data)
 
     def test_login_missing_credentials(self):
         """
@@ -516,7 +531,7 @@ class LoginViewTests(APITestCase):
         mock_check_user_validity.return_value = self.test_user
         data = {"email": "test@example.com", "password": "TestP@ssw0rd"}
 
-        # ** Crucial: Seed the cache for the throttle to work
+        # ** Seeding the cache for the throttle to work
         cache.set(f"id_{self.test_user.id}", self.test_user.id, timeout=60)
 
         # Make the first request (should succeed)
@@ -527,6 +542,7 @@ class LoginViewTests(APITestCase):
         response2 = self.client.post(self.url, data, format="json")
         self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertIn("detail", response2.data)
+        self.assertIn("Too many login attempts.", response2.data["detail"])
 
 
 class ResendOtpViewTests(APITestCase):
@@ -691,7 +707,7 @@ class ResendOtpViewTests(APITestCase):
 
         data = {"user_id": self.user_id}
 
-        # ** Crucial: Seed the cache for the throttle to work
+        # ** Seeding the cache for the throttle to work
         cache.set(f"id_{self.test_user.id}", self.test_user.id, timeout=60)
 
         # Make the first request (should succeed)
@@ -702,6 +718,7 @@ class ResendOtpViewTests(APITestCase):
         response2 = self.client.post(self.url, data, format="json")
         self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertIn("detail", response2.data)
+        self.assertIn("Too many OTP resend requests.", response2.data["detail"])
 
     @patch("auth_api.views.check_user_id")
     def test_resend_otp_invalid_cache_data(self, mock_check_user_id):
@@ -1288,28 +1305,22 @@ class EmailVerifyViewTests(APITestCase):
 
     def test_email_verify_post_throttled(self):
         """
-        Test that when throttle conditions are met, the view returns a 429 error.
-        We simulate this by:
-          1. Caching the email (so that `cached_email` is truthy).
-          2. Patching `check_throttle_duration` to return a non-empty value.
-          3. Patching `start_throttle` to raise a Throttled exception.
+        Test that the Email verification view is throttled after exceeding the rate limit.
         """
-        # Pre-populate the cache so that the view sees a cached email.
-        cache.set(f"email_{self.valid_email}", self.valid_email, timeout=60)
         data = {"email": self.valid_email}
-        # Patch both throttle-related functions.
-        with patch("auth_api.views.check_throttle_duration", return_value=10):
-            with patch(
-                "auth_api.views.start_throttle",
-                side_effect=Throttled(
-                    detail="Request was throttled. Expected available in 10 seconds."
-                ),
-            ):
-                response = self.client.post(self.url, data, format="json")
-                self.assertEqual(
-                    response.status_code, status.HTTP_429_TOO_MANY_REQUESTS
-                )
-                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+        # ** Seeding the cache for the throttle to work
+        cache.set(f"email_{self.valid_email}", self.valid_email, timeout=60)
+
+        # Make the first request (should succeed)
+        response1 = self.client.post(self.url, data, format="json")
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Make the second request immediately (should be throttled)
+        response2 = self.client.post(self.url, data, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("detail", response2.data)
+        self.assertIn("Too many email verification requests.", response2.data["detail"])
 
     def test_email_verify_post_exception(self):
         """
@@ -1410,22 +1421,18 @@ class PrivatePhoneVerifyViewTests(APITestCase):
 
     def test_phone_verify_post_throttled(self):
         """
-        Test that if throttle conditions are met, the view returns a 429 error.
-        We simulate throttling by patching the throttle helpers.
+        Test that the Phone OTP view is throttled after exceeding the rate limit.
         """
-        with patch("auth_api.views.check_throttle_duration", return_value=10):
-            with patch(
-                "auth_api.views.start_throttle",
-                side_effect=Throttled(
-                    detail="Request was throttled. Expected available in 10 seconds."
-                ),
-            ):
-                response = self.client.post(self.url, {}, format="json")
-                self.assertEqual(
-                    response.status_code, status.HTTP_429_TOO_MANY_REQUESTS
-                )
-                # DRF usually returns the throttling message under the "detail" key.
-                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+        # Make the first request (should succeed)
+        response1 = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        # Make the second request immediately (should be throttled)
+        response2 = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("detail", response2.data)
+        self.assertIn("Too many phone verification requests.", response2.data["detail"])
 
     # ─── Tests for PATCH method (Verifying OTP) ──────────────────────────────
 
@@ -1654,22 +1661,23 @@ class PasswordResetViewTests(APITestCase):
             self.assertEqual(cached_email, self.valid_email)
 
     def test_password_reset_post_throttled(self):
-        """POST should return 429 when throttling conditions are met."""
+        """
+        Test that the password reset view is throttled after exceeding the rate limit.
+        """
         data = {"email": self.valid_email}
-        # Pre-cache the email so that throttling is triggered.
+
+        # ** Seeding the cache for the throttle to work
         cache.set(f"email_{self.valid_email}", self.valid_email, timeout=60)
-        with patch("auth_api.views.check_throttle_duration", return_value=10):
-            with patch(
-                "auth_api.views.start_throttle",
-                side_effect=Throttled(
-                    detail="Request was throttled. Expected available in 10 seconds."
-                ),
-            ):
-                response = self.client.post(self.url, data, format="json")
-                self.assertEqual(
-                    response.status_code, status.HTTP_429_TOO_MANY_REQUESTS
-                )
-                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+        # Make the first request (should succeed)
+        response1 = self.client.post(self.url, data, format="json")
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Make the second request immediately (should be throttled)
+        response2 = self.client.post(self.url, data, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("detail", response2.data)
+        self.assertIn("Too many password reset requests.", response2.data["detail"])
 
     def test_password_reset_post_exception(self):
         """POST should return a 500 error if an unexpected exception occurs."""
@@ -1988,6 +1996,51 @@ class PublicUserApiTests(APITestCase):
             json.dumps(res.data["phone_number"]),
         )
 
+    def test_create_long_bio(self):
+        """Test that a bio longer than 255 characters returns a serializer error."""
+        payload = {
+            "email": "test10@example.com",
+            "password": "Django@123",
+            "c_password": "Django@123",
+            "bio": "a" * 256,
+        }
+        res = self.client.post(self.url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(
+            "Ensure this field has no more than 150 characters.",
+            json.dumps(res.data["bio"]),
+        )
+
+    def test_create_spaced_username(self):
+        """Test that a username with invalid characters returns a serializer error."""
+        payload = {
+            "email": "test10@example.com",
+            "password": "Django@123",
+            "c_password": "Django@123",
+            "username": "invalid username",
+        }
+        res = self.client.post(self.url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(
+            "Username cannot contain spaces.",
+            json.dumps(res.data["username"]["space"]),
+        )
+
+    def test_create_invalid_username(self):
+        """Test that a username with invalid characters returns a serializer error."""
+        payload = {
+            "email": "test10@example.com",
+            "password": "Django@123",
+            "c_password": "Django@123",
+            "username": "%^jhdsf*()%)",
+        }
+        res = self.client.post(self.url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(
+            "Username can only contain letters, numbers, periods, underscores, hyphens, and @ signs.",
+            json.dumps(res.data["username"]["special"]),
+        )
+
     def test_create_user_short_username(self):
         """Test that a username shorter than 6 characters returns a serializer error."""
         payload = {
@@ -1999,7 +2052,22 @@ class PublicUserApiTests(APITestCase):
         res = self.client.post(self.url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn(
-            "Username must be at least 6 characters long",
+            "Username must be at least 6 characters long.",
+            json.dumps(res.data["username"]["short"]),
+        )
+
+    def test_create_user_long_username(self):
+        """Test that a username longer than 255 characters returns a serializer error."""
+        payload = {
+            "email": "test10@example.com",
+            "password": "Django@123",
+            "c_password": "Django@123",
+            "username": "a" * 256,
+        }
+        res = self.client.post(self.url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(
+            "Ensure this field has no more than 255 characters.",
             json.dumps(res.data["username"]),
         )
 
@@ -2033,23 +2101,25 @@ class PublicUserApiTests(APITestCase):
 
     def test_create_user_throttled(self):
         """Simulate throttling on user creation when the email is already cached."""
+
         payload = {
             "email": "test12@example.com",
             "password": "Django@123",
             "c_password": "Django@123",
         }
-        # Pre-populate the cache for this email.
+
+        # ** Seeding the cache for the throttle to work
         cache.set(f"email_{payload['email']}", payload["email"], timeout=60)
-        with patch(
-            "auth_api.views.start_throttle",
-            side_effect=Throttled(
-                detail="Request was throttled. Expected available in 10 seconds."
-            ),
-        ):
-            with patch("auth_api.views.check_throttle_duration", return_value=10):
-                res = self.client.post(self.url, payload, format="json")
-                self.assertEqual(res.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-                self.assertIn("Request was throttled", res.data.get("detail", ""))
+
+        # Make the first request (should succeed)
+        response1 = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Make the second request immediately (should be throttled)
+        response2 = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("detail", response2.data)
+        self.assertIn("Too many user creation requests.", response2.data["detail"])
 
     def test_create_user_email_link_failure(self):
         """
@@ -2146,20 +2216,142 @@ class PrivateUserApiTests(APITestCase):
     # ------------------GET------------------#
 
     def test_list_users(self):
-        """Test retrieving a paginated list of users."""
+        """Test retrieving a paginated list of users with correct serializer."""
         res = self.client.get(USER_URL)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("results", res.data)
         self.assertIn("count", res.data)
         self.assertIn("total_pages", res.data)
+        # Check UserListSerializer fields for non-staff user
+        for user_data in res.data["results"]:
+            self.assertIn("id", user_data)
+            self.assertIn("email", user_data)
+            self.assertIn("username", user_data)
+            self.assertIn("first_name", user_data)
+            self.assertIn("last_name", user_data)
+            self.assertIn("bio", user_data)
+            self.assertIn("profile_img", user_data)
+            # Ensure admin-only fields are not present
+            self.assertNotIn("is_active", user_data)
+            self.assertNotIn("is_staff", user_data)
+            self.assertNotIn("strikes", user_data)
+
+    def test_list_users_as_staff(self):
+        """Test retrieving a paginated list of users as staff with UserAdminListSerializer."""
+        # Update user to be staff
+        self.user.is_staff = True
+        self.user.save()
+        res = self.client.get(USER_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("results", res.data)
+        self.assertIn("count", res.data)
+        self.assertIn("total_pages", res.data)
+        # Check UserAdminListSerializer fields for staff user
+        for user_data in res.data["results"]:
+            self.assertIn("id", user_data)
+            self.assertIn("email", user_data)
+            self.assertIn("username", user_data)
+            self.assertIn("is_active", user_data)
+            self.assertIn("is_staff", user_data)
+            self.assertIn("strikes", user_data)
+            # Ensure non-admin fields are not present
+            self.assertNotIn("first_name", user_data)
+            self.assertNotIn("last_name", user_data)
+            self.assertNotIn("bio", user_data)
+            self.assertNotIn("profile_img", user_data)
 
     def test_retrieve_user(self):
-        """Test retrieving a single user by ID."""
+        """Test retrieving a single user by ID with correct serializer."""
         res = self.client.get(self.url)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["email"], self.user.email)
+        # Check UserSerializer fields for own user
+        self.assertIn("id", res.data)
+        self.assertIn("email", res.data)
+        self.assertIn("username", res.data)
+        self.assertIn("first_name", res.data)
+        self.assertIn("last_name", res.data)
+        self.assertIn("bio", res.data)
+        self.assertIn("phone_number", res.data)
+        self.assertIn("profile_img", res.data)
+        self.assertIn("strikes", res.data)
+        self.assertIn("slug", res.data)
+        self.assertIn("is_active", res.data)
+        self.assertIn("is_staff", res.data)
+        self.assertIn("is_superuser", res.data)
+        self.assertIn("is_email_verified", res.data)
+        self.assertIn("is_phone_verified", res.data)
+        self.assertIn("is_noti_on", res.data)
+        self.assertIn("is_two_fa", res.data)
+
+    def test_retrieve_user_as_non_owner(self):
+        """Test retrieving another user by ID with UserListSerializer."""
+        # Create another user
+        other_user = create_user(
+            email="other@example.com",
+            password="Django@123",
+        )
+        url = detail_url(other_user.id)
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["email"], other_user.email)
+        # Check UserListSerializer fields for non-owner, non-superuser
+        self.assertIn("id", res.data)
+        self.assertIn("email", res.data)
+        self.assertIn("username", res.data)
+        self.assertIn("first_name", res.data)
+        self.assertIn("last_name", res.data)
+        self.assertIn("bio", res.data)
+        self.assertIn("profile_img", res.data)
+        # Ensure UserSerializer-only fields are not present
+        self.assertNotIn("phone_number", res.data)
+        self.assertNotIn("strikes", res.data)
+        self.assertNotIn("slug", res.data)
+        self.assertNotIn("is_active", res.data)
+        self.assertNotIn("is_staff", res.data)
+        self.assertNotIn("is_superuser", res.data)
+        self.assertNotIn("is_email_verified", res.data)
+        self.assertNotIn("is_phone_verified", res.data)
+        self.assertNotIn("is_noti_on", res.data)
+        self.assertNotIn("is_two_fa", res.data)
+
+    def test_retrieve_user_as_superuser(self):
+        """Test retrieving another user by ID as superuser with UserSerializer."""
+        # Update user to be superuser
+        self.user.is_superuser = True
+        self.user.save()
+        # Create another user
+        other_user = create_user(
+            email="other@example.com",
+            password="Django@123",
+        )
+        url = detail_url(other_user.id)
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["email"], other_user.email)
+        # Check UserSerializer fields for superuser
+        self.assertIn("id", res.data)
+        self.assertIn("email", res.data)
+        self.assertIn("username", res.data)
+        self.assertIn("first_name", res.data)
+        self.assertIn("last_name", res.data)
+        self.assertIn("bio", res.data)
+        self.assertIn("phone_number", res.data)
+        self.assertIn("profile_img", res.data)
+        self.assertIn("strikes", res.data)
+        self.assertIn("slug", res.data)
+        self.assertIn("is_active", res.data)
+        self.assertIn("is_staff", res.data)
+        self.assertIn("is_superuser", res.data)
+        self.assertIn("is_email_verified", res.data)
+        self.assertIn("is_phone_verified", res.data)
+        self.assertIn("is_noti_on", res.data)
+        self.assertIn("is_two_fa", res.data)
 
     def test_filter_users_by_search(self):
         """Test filtering users by email or username."""
@@ -2311,6 +2503,20 @@ class PrivateUserApiTests(APITestCase):
             "The phone number entered is not valid.",
             json.dumps(response.data["phone_number"]),
         )
+
+    def test_admin_cannot_disable_two_fa(self):
+        """Test that admin cannot disable 2FA."""
+        staff_user = get_user_model().objects.create_user(
+            email="admin@example.com",
+            password="Admin@123",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=staff_user)
+        payload = {"is_two_fa": False}
+        response = self.client.patch(self.url, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("Admins cannot deactivate 2FA.", response.data["error"])
 
     def test_put_method_not_allowed(self):
         """Test that PUT method is not allowed."""

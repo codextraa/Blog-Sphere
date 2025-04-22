@@ -24,12 +24,6 @@ export const signUpError = async (response) => {
         response.error.email[0].slice(1).toLowerCase();
     }
 
-    if (response.error.username) {
-      errorMessages["username"] =
-        response.error.username[0][0].toUpperCase() +
-        response.error.username[0].slice(1).toLowerCase();
-    }
-
     if (response.error.first_name) {
       errorMessages["first_name"] =
         response.error.first_name[0][0].toUpperCase() +
@@ -46,6 +40,30 @@ export const signUpError = async (response) => {
       errorMessages["phone_number"] =
         response.error.phone_number[0][0].toUpperCase() +
         response.error.phone_number[0].slice(1).toLowerCase();
+    }
+
+    // Check for each possible attribute and append its messages
+    if (response.error.username) {
+      const userErrorMessages = [];
+      const error = response.error.username;
+
+      if (error.short) {
+        userErrorMessages.push(...[error.short]);
+      }
+      if (error.space) {
+        userErrorMessages.push(...[error.space]);
+      }
+      if (error.special) {
+        userErrorMessages.push(...[error.special]);
+      }
+
+      if (userErrorMessages.length === 0) {
+        userErrorMessages.push(
+          ...[error[0][0].toUpperCase() + error[0].slice(1).toLowerCase()],
+        );
+      }
+
+      errorMessages["username"] = userErrorMessages.join(" ");
     }
 
     // Check for each possible attribute and append its messages
@@ -89,12 +107,6 @@ export const updateActionError = async (response) => {
   if (typeof response.error === "object") {
     const errorMessages = {};
 
-    if (response.error.username) {
-      errorMessages["username"] =
-        response.error.username[0][0].toUpperCase() +
-        response.error.username[0].slice(1).toLowerCase();
-    }
-
     if (response.error.first_name) {
       errorMessages["first_name"] =
         response.error.first_name[0][0].toUpperCase() +
@@ -111,6 +123,36 @@ export const updateActionError = async (response) => {
       errorMessages["phone_number"] =
         response.error.phone_number[0][0].toUpperCase() +
         response.error.phone_number[0].slice(1).toLowerCase();
+    }
+
+    if (response.error.bio) {
+      errorMessages["username"] =
+        response.error.bio[0][0].toUpperCase() +
+        response.error.bio[0].slice(1).toLowerCase();
+    }
+
+    // Check for each possible attribute and append its messages
+    if (response.error.username) {
+      const userErrorMessages = [];
+      const error = response.error.username;
+
+      if (error.short) {
+        userErrorMessages.push(...[error.short]);
+      }
+      if (error.space) {
+        userErrorMessages.push(...[error.space]);
+      }
+      if (error.special) {
+        userErrorMessages.push(...[error.special]);
+      }
+
+      if (userErrorMessages.length === 0) {
+        userErrorMessages.push(
+          ...[error[0][0].toUpperCase() + error[0].slice(1).toLowerCase()],
+        );
+      }
+
+      errorMessages["username"] = userErrorMessages.join(" ");
     }
 
     return { error: errorMessages };
@@ -231,6 +273,7 @@ export const createUserAction = async (formData, user = "user") => {
   const first_name = formData.get("first_name");
   const last_name = formData.get("last_name");
   const phone_number = formData.get("phone_number");
+  const bio = formData.get("bio");
   const password = formData.get("password");
   const c_password = formData.get("c_password");
 
@@ -264,6 +307,7 @@ export const createUserAction = async (formData, user = "user") => {
     ...(first_name && { first_name }),
     ...(last_name && { last_name }),
     ...(phone_number && { phone_number }),
+    ...(bio && { bio }),
     ...(user === "admin" && { is_staff: true }),
     password,
     c_password,
@@ -288,12 +332,18 @@ export const updateUserAction = async (id, formData) => {
   const first_name = formData.get("first_name");
   const last_name = formData.get("last_name");
   const phone_number = formData.get("phone_number");
+  const bio = formData.get("bio");
+  const is_two_fa = formData.get("is_two_fa");
+  const is_noti_on = formData.get("is_noti_on");
 
   const data = {
     ...(username && { username }),
     ...(first_name && { first_name }),
     ...(last_name && { last_name }),
     ...(phone_number && { phone_number }),
+    ...(bio && { bio }),
+    ...(is_two_fa && { is_two_fa }),
+    ...(is_noti_on && { is_noti_on }),
   };
 
   try {
