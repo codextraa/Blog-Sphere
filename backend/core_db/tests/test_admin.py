@@ -7,18 +7,21 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.conf import settings
+from core_db.models import Category, User_Category
 
 
-class AdminSiteTests(TestCase):
+def create_admin_user(email="admin@example.com", password="Django@123"):
+    """Create and return a new superuser"""
+    return get_user_model().objects.create_superuser(email=email, password=password)
+
+
+class UserAdminSiteTests(TestCase):
     """Tests for Django admin"""
 
     def setUp(self):
         """Create user and client"""
         self.client = Client()
-        self.admin_user = get_user_model().objects.create_superuser(
-            email="admin@example.com",
-            password="Django@123",
-        )
+        self.admin_user = create_admin_user()
         self.client.force_login(self.admin_user)
         self.user = get_user_model().objects.create_user(
             email="test@example.com",
@@ -85,4 +88,56 @@ class AdminSiteTests(TestCase):
             user.full_clean()
         self.assertIn(
             "Ensure this value is less than or equal to 3", str(context.exception)
+        )
+
+
+class CategoryAdminSiteTests(TestCase):
+    """Tests for Django admin"""
+
+    def setUp(self):
+        """Create user and client"""
+        self.client = Client()
+        self.admin_user = create_admin_user()
+        self.client.force_login(self.admin_user)
+        self.category = Category.objects.create(name="Test Category")
+        self.user_category = User_Category.objects.create(
+            user=self.admin_user, category=self.category
+        )
+
+    def test_category_list(self):
+        """Test that Categories are listed on page."""
+        # All the categories from core_db app
+        url = reverse("admin:core_db_category_changelist")
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, self.category.name)
+
+    def test_create_category_from_admin(self):
+        """Test Creating a new category form admin interface"""
+
+        url = reverse("admin:core_db_category_add")
+        payload = {
+            "name": "newcategory",
+        }
+        res = self.client.post(url, payload)
+
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(Category.objects.filter(name="newcategory").exists())
+
+    def test_create_user_category_from_admin(self):
+        """Test Creating a new user_category form admin interface"""
+
+        url = reverse("admin:core_db_user_category_add")
+        payload = {
+            "user": self.admin_user,
+            "category": self.category,
+        }
+        res = self.client.post(url, payload)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(
+            User_Category.objects.filter(
+                user=self.admin_user, category=self.category
+            ).exists()
         )
