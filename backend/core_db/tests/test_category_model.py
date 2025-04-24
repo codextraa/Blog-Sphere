@@ -1,7 +1,7 @@
 """Test cases for Category Model"""
 
 from django.test import TestCase
-from django.db.utils import IntegrityError
+from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from core_db.models import Category, User_Category
 
@@ -32,9 +32,16 @@ class CategoryModelTest(TestCase):
         Category.objects.create(
             name="Test category",
         )
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             Category.objects.create(
                 name="Test category",
+            )
+
+    def test_category_name_max_length(self):
+        """Test category name max length"""
+        with self.assertRaises(ValidationError):
+            Category.objects.create(
+                name="c" * 51,
             )
 
     def test_category_user_model(self):
@@ -50,7 +57,7 @@ class CategoryModelTest(TestCase):
 
     def test_category_must_in_user_category_model(self):
         """Test category_user model without category"""
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             User_Category.objects.create(
                 user=self.user,
             )
@@ -60,7 +67,7 @@ class CategoryModelTest(TestCase):
         category = Category.objects.create(
             name="Test category",
         )
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             User_Category.objects.create(
                 category=category,
             )

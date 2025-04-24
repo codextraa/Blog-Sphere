@@ -7,7 +7,12 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.conf import settings
-from core_db.models import Category, User_Category
+from core_db.models import Category, User_Category, Blog, Blog_Category
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def create_admin_user(email="admin@example.com", password="Django@123"):
@@ -16,7 +21,7 @@ def create_admin_user(email="admin@example.com", password="Django@123"):
 
 
 class UserAdminSiteTests(TestCase):
-    """Tests for Django admin"""
+    """Tests for Django admin User"""
 
     def setUp(self):
         """Create user and client"""
@@ -92,7 +97,7 @@ class UserAdminSiteTests(TestCase):
 
 
 class CategoryAdminSiteTests(TestCase):
-    """Tests for Django admin"""
+    """Tests for Django admin Category"""
 
     def setUp(self):
         """Create user and client"""
@@ -140,4 +145,70 @@ class CategoryAdminSiteTests(TestCase):
             User_Category.objects.filter(
                 user=self.admin_user, category=self.category
             ).exists()
+        )
+
+
+class BlogAdminSiteTests(TestCase):
+    """Tests for Django admin Blog"""
+
+    def setUp(self):
+        """Create user and client"""
+        self.client = Client()
+        self.admin_user = create_admin_user()
+        self.client.force_login(self.admin_user)
+        self.category = Category.objects.create(name="Test Category")
+        self.user_category = User_Category.objects.create(
+            user=self.admin_user, category=self.category
+        )
+
+    def test_blog_list(self):
+        """Test that Blogs are listed on page."""
+        # All the categories from core_db app
+        url = reverse("admin:core_db_blog_changelist")
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, 200)
+
+    def test_create_blog_from_admin(self):
+        """Test that Creating a new blog from admin interface"""
+        url = reverse("admin:core_db_blog_add")
+        payload = {
+            "title": "Test Blog Title",
+            "author": self.admin_user.id,
+            "overview": "o" * 21,
+            "content": "c" * 101,
+            "likes": 0,
+            "cat_count": 0,
+            "report_count": 0,
+            "status": "Draft",
+            "_save": "",
+        }
+        res = self.client.post(url, payload, follow=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(
+            Blog.objects.filter(title="Test Blog Title").exists(),
+        )
+
+    def test_create_blog_category_from_admin(self):
+        """Test Creating a new blog_category from admin interface"""
+        blog = Blog.objects.create(
+            title="Test Blog Title",
+            author=self.admin_user,
+            overview="o" * 21,
+            content="c" * 101,
+            likes=0,  # Add required fields
+            cat_count=0,
+            report_count=0,
+            status="Draft",
+        )
+        url = reverse("admin:core_db_blog_category_add")
+        payload = {
+            "blog": blog.id,
+            "category": self.category.id,
+            "_save": "",
+        }
+        res = self.client.post(url, payload, follow=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(
+            Blog_Category.objects.filter(blog=blog, category=self.category).exists(),
         )
