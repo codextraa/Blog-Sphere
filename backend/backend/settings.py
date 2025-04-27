@@ -281,6 +281,7 @@ REST_FRAMEWORK = {
         "password_reset": "1/min",
         "phone_otp": "1/min",
     },
+    "DEFAULT_RENDERER_CLASSES": ("backend.renderers.ViewRenderer",),
     "ORDERING_PARAM": "ordering",
 }
 

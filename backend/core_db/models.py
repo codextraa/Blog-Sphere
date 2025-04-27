@@ -186,3 +186,95 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         """Return Email"""
         return f"{self.email}"
+
+
+class Category(models.Model):
+    """Category Model"""
+
+    name = models.CharField(max_length=50, unique=True)
+
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class User_Category(models.Model):
+    """User Category Model"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.category.name}"
+
+
+class Blog(models.Model):
+    """Blog Model"""
+
+    STATUS = (
+        ("Draft", "Draft"),
+        ("Published", "Published"),
+    )
+
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    overview = models.CharField(max_length=150)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    likes = models.IntegerField(default=0)
+    cat_count = models.IntegerField(default=0)
+    report_count = models.IntegerField(default=0)
+    status = models.CharField(max_length=12, choices=STATUS, default="Draft")
+    visibility = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
+
+    def _blog_validation(self):
+        if len(self.title) < 10:
+            raise ValidationError("Title must be at least 10 characters long.")
+        if len(self.title) > 100:
+            raise ValidationError("Title cannot be longer than 100 characters.")
+        if len(self.overview) < 20:
+            raise ValidationError("Overview must be at least 20 characters long.")
+        if len(self.overview) > 150:
+            raise ValidationError("Overview cannot be longer than 150 characters.")
+        if len(self.content) < 100:
+            raise ValidationError("Context must be at least 100 characters long.")
+        if self.cat_count > 5:
+            raise ValidationError("Cannot add more than 5 categories.")
+
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self._blog_validation()
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title}"
+
+
+class Blog_Category(models.Model):
+    """Blog Category Model"""
+
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        """Running Validators before saving"""
+        self.full_clean()
+        if self.blog.cat_count >= 5:
+            raise ValidationError("Cannot add more than 5 categories.")
+
+        self.blog.cat_count += 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.blog.title} - {self.category.name}"

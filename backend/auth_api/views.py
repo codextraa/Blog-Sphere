@@ -26,7 +26,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import AuthException
-from .renderers import ViewRenderer
+from backend.renderers import ViewRenderer
 from .paginations import UserPagination
 from .filters import UserFilter
 from .utils import EmailOtp, EmailLink, PhoneOtp
