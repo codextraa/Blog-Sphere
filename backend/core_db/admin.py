@@ -3,8 +3,8 @@
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
-from .forms import CustomUserCreationForm
+from .forms import CustomUserCreationForm, CustomBlogCreationForm
+from .models import User, Category, User_Category, Blog, Blog_Category
 
 
 class UserAdmin(BaseUserAdmin):
@@ -71,4 +71,16 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
+class BlogAdmin(admin.ModelAdmin):
+    """Custom Blog Admin"""
+
+    prepopulated_fields = {"slug": ("title",)}
+
+    add_form = CustomBlogCreationForm
+
+
 admin.site.register(User, UserAdmin)
+admin.site.register(Category)
+admin.site.register(User_Category)
+admin.site.register(Blog, BlogAdmin)
+admin.site.register(Blog_Category)

@@ -1,3 +1,21 @@
-from django.shortcuts import render
+# """Views for blog api."""  # pylint: disable=C0302
 
-# Create your views here.
+# from rest_framework.views import APIView
+# from rest_framework_simplejwt.authentication import JWTAuthentication
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .serializers import CategorySerializer, UserCategorySerializer
+# from backend.renderers import ViewRenderer
+
+
+# class CategoryView(APIView):
+#     """Category View."""
+
+#     pass
+
+
+# class UserCategoryView(APIView):
+#     """User Category View."""
+
+#     pass

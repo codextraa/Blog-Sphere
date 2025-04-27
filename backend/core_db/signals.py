@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group
 from django.dispatch import receiver
 from django.utils.text import slugify
 from django.utils.timezone import now
-from .models import User
+from .models import User, Blog
 
 
 @receiver(pre_save, sender=User)
@@ -29,6 +29,7 @@ def save_user_slug(
 def save_user_last_failed_login_time(
     sender, instance, created, **kwargs
 ):  # pylint: disable=unused-argument
+    """Save last failed login time"""
     if created:
         instance.last_failed_login_time = now()
         instance.save()
@@ -38,6 +39,7 @@ def save_user_last_failed_login_time(
 def set_user_default_group(
     sender, instance, created, **kwargs
 ):  # pylint: disable=unused-argument
+    """Set default group for user"""
     if created and instance.pk:
         if instance.is_superuser:
             instance.profile_img = "profile_images/default_profile.jpg"
@@ -50,3 +52,13 @@ def set_user_default_group(
         else:
             default_group, _ = Group.objects.get_or_create(name="Default")
             instance.groups.add(default_group)
+
+
+@receiver(post_save, sender=Blog)
+def save_blog_slug(
+    sender, instance, created, **kwargs
+):  # pylint: disable=unused-argument
+    """Create slug for blog using title"""
+    if created or (slugify(instance.title) != instance.slug):
+        instance.slug = slugify(instance.title)
+        instance.save()
