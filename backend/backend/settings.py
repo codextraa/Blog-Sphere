@@ -60,6 +60,8 @@ APP_NAME = os.getenv("APP_NAME")
 INSTALLED_APPS = [
     "core_db",
     "auth_api",
+    "blog_api",
+    "noti_api",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",

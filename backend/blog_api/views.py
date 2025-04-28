@@ -12,10 +12,10 @@
 # class CategoryView(APIView):
 #     """Category View."""
 
-#     pass
+
+# class UserCategoryRetrieveView(APIView):
+#     """User Category Retrive View."""
 
 
 # class UserCategoryView(APIView):
-#     """User Category View."""
-
-#     pass
+#     """User Category Create and Delete View."""
