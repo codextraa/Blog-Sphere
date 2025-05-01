@@ -13,9 +13,5 @@
 #     """Category View."""
 
 
-# class UserCategoryRetrieveView(APIView):
-#     """User Category Retrive View."""
-
-
 # class UserCategoryView(APIView):
 #     """User Category Create and Delete View."""

@@ -13,7 +13,6 @@ from core_db.models import Category, User_Category
 
 CATEGORY_URL = reverse("category")
 USER_CATEGORY_URL = reverse("user-category")
-USER_CATGEORY_RETRIEVE_URL = reverse("user-category-retreive")
 
 
 def category_detail_url(cat_id):
@@ -21,14 +20,9 @@ def category_detail_url(cat_id):
     return reverse("category-detail", args=[cat_id])
 
 
-def user_category_retrieve_url(user_id):
+def user_category_detail_url(user_cat_id):
     """Create and return a user detail URL"""
-    return reverse("user-category-retrieve", args=[user_id])
-
-
-def user_category_delete_url(user_cat_id):
-    """Create and return a user detail URL"""
-    return reverse("user-category", args=[user_cat_id])
+    return reverse("user-category-detail", args=[user_cat_id])
 
 
 def create_user(**params):
@@ -181,19 +175,9 @@ class PublicUserCategoryTest(APITestCase):
         res = self.client.get(USER_CATEGORY_URL)
         self.assertEqual(res.status_code, 401)
 
-    def test_list_all_user_category_retrieve_url(self):
-        """List all the user categories"""
-        res = self.client.get(USER_CATGEORY_RETRIEVE_URL)
-        self.assertEqual(res.status_code, 401)
-
-    def test_retrieve_user_category_retrieve_url(self):
+    def test_retrieve_user_category_detail_url(self):
         """Retrieve a single user category"""
-        res = self.client.get(user_category_retrieve_url(self.user.id))
-        self.assertEqual(res.status_code, 401)
-
-    def test_retrieve_user_category_delete_url(self):
-        """Retrieve a single user category"""
-        res = self.client.get(user_category_delete_url(self.user_category.id))
+        res = self.client.get(user_category_detail_url(self.user_category.id))
         self.assertEqual(res.status_code, 401)
 
     def test_create_user_category_url(self):
@@ -203,58 +187,27 @@ class PublicUserCategoryTest(APITestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(User_Category.objects.count(), 1)
 
-    def test_create_user_category_retrieve_url(self):
-        """Cannot create a new user category"""
-        payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.post(USER_CATGEORY_RETRIEVE_URL, payload)
-        self.assertEqual(res.status_code, 401)
-        self.assertEqual(User_Category.objects.count(), 1)
-
-    def test_update_user_category_retrieve_url(self):
+    def test_update_user_category_detail_url(self):
         """Cannot update a user category"""
         payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.put(user_category_retrieve_url(self.user.id), payload)
+        res = self.client.put(user_category_detail_url(self.user_category.id), payload)
         self.assertEqual(res.status_code, 401)
         self.user_category.refresh_from_db()
         self.assertEqual(self.user_category.user, self.user)
 
-    def test_update_user_category_delete_url(self):
-        """Cannot update a user category"""
-        payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.put(user_category_delete_url(self.user_category.id), payload)
-        self.assertEqual(res.status_code, 401)
-        self.user_category.refresh_from_db()
-        self.assertEqual(self.user_category.user, self.user)
-
-    def test_partial_update_user_category_retrieve_url(self):
+    def test_partial_update_user_category_detail_url(self):
         """Cannot partial update a user category"""
         payload = {"user": self.user.id, "category": self.category.id}
         res = self.client.patch(
-            user_category_retrieve_url(self.user_category.id), payload
+            user_category_detail_url(self.user_category.id), payload
         )
         self.assertEqual(res.status_code, 401)
         self.user_category.refresh_from_db()
         self.assertEqual(self.user_category.user, self.user)
 
-    def test_partial_update_user_category_delete_url(self):
-        """Cannot partial update a user category"""
-        payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.patch(
-            user_category_delete_url(self.user_category.id), payload
-        )
-        self.assertEqual(res.status_code, 401)
-        self.user_category.refresh_from_db()
-        self.assertEqual(self.user_category.user, self.user)
-
-    def test_delete_user_category_retrieve_url(self):
+    def test_delete_user_category_detail_url(self):
         """Cannot delete a user category"""
-        res = self.client.delete(user_category_retrieve_url(self.user.id))
-        self.assertEqual(res.status_code, 401)
-        self.assertTrue(User_Category.objects.filter(id=self.user.id).exists())
-
-    def test_delete_user_category_delete_url(self):
-        """Cannot delete a user category"""
-        res = self.client.delete(user_category_delete_url(self.user_category.id))
+        res = self.client.delete(user_category_detail_url(self.user_category.id))
         self.assertEqual(res.status_code, 401)
         self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
 
@@ -285,11 +238,6 @@ class PrivateUserCategoryTest(APITestCase):
             user=self.user, category=self.category
         )
 
-    def test_list_user_category_url(self):
-        """Cannot list user categories on user-category/"""
-        res = self.client.get(USER_CATEGORY_URL)
-        self.assertEqual(res.status_code, 405)
-
     def test_list_user_category_retrieve_url(self):
         """List user categories for the authenticated user by user_id"""
         new_category = Category.objects.create(name="New Category")
@@ -300,7 +248,7 @@ class PrivateUserCategoryTest(APITestCase):
         other_user_category = User_Category.objects.create(
             user=self.other_user, category=other_category
         )
-        res = self.client.get(USER_CATGEORY_RETRIEVE_URL)
+        res = self.client.get(USER_CATEGORY_URL)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 2)
         user_category_ids = [item["id"] for item in res.data]
@@ -311,14 +259,9 @@ class PrivateUserCategoryTest(APITestCase):
         for item in res.data:
             self.assertEqual(item["user"], self.user.id)
 
-    def test_list_user_category_retrieve_url_forbidden(self):
-        """Cannot list another user's categories"""
-        res = self.client.get(user_category_retrieve_url(self.other_user.id))
-        self.assertEqual(res.status_code, 403)
-
-    def test_retrieve_user_category_delete_url(self):
+    def test_retrieve_user_category_detail_url(self):
         """Cannot retrieve on user-category/ (used for DELETE)"""
-        res = self.client.get(user_category_delete_url(self.user_category.id))
+        res = self.client.get(user_category_detail_url(self.user_category.id))
         self.assertEqual(res.status_code, 405)
 
     def test_create_user_category(self):
@@ -331,13 +274,6 @@ class PrivateUserCategoryTest(APITestCase):
         user_category = User_Category.objects.get(user=self.user, category=new_category)
         self.assertEqual(user_category.user, self.user)
         self.assertEqual(user_category.category, new_category)
-
-    def test_create_user_category_retrieve_url(self):
-        """Create a new user category for the authenticated user"""
-        new_category = Category.objects.create(name="New Category")
-        payload = {"user": self.user.id, "category": new_category.id}
-        res = self.client.post(USER_CATGEORY_RETRIEVE_URL, payload)
-        self.assertEqual(res.status_code, 405)
 
     def test_create_duplicate_user_category_fails(self):
         """Cannot create a duplicate user category (same user and category)"""
@@ -358,17 +294,8 @@ class PrivateUserCategoryTest(APITestCase):
         """Delete a user category by user_category_id"""
         payload = {"user_category_id": self.user_category.id}
         res = self.client.delete(
-            user_category_delete_url(self.user_category.id), payload
+            user_category_detail_url(self.user_category.id), payload
         )
-        self.assertEqual(res.status_code, 204)
-        self.assertFalse(
-            User_Category.objects.filter(id=self.user_category.id).exists()
-        )
-
-    def test_delete_user_category_retrieve_url(self):
-        """Delete a user category by user_category_id"""
-        payload = {"user_category_id": self.user_category.id}
-        res = self.client.delete(user_category_retrieve_url(self.user.id), payload)
         self.assertEqual(res.status_code, 204)
         self.assertFalse(
             User_Category.objects.filter(id=self.user_category.id).exists()
@@ -382,7 +309,7 @@ class PrivateUserCategoryTest(APITestCase):
         )
         payload = {"user_category_id": other_user_category.id}
         res = self.client.delete(
-            user_category_delete_url(other_user_category.id), payload
+            user_category_detail_url(other_user_category.id), payload
         )
         self.assertEqual(res.status_code, 403)
         self.assertTrue(
@@ -392,33 +319,21 @@ class PrivateUserCategoryTest(APITestCase):
     def test_update_user_category_not_allowed(self):
         """Cannot update a user category (PUT) on user-category/"""
         payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.put(user_category_delete_url(self.user_category.id), payload)
-        self.assertEqual(res.status_code, 405)
-
-    def test_update_user_category_not_allowed_retrieve_url(self):
-        """Cannot update a user category (PUT) on user-category/"""
-        payload = {"user": self.user.id, "category": self.category.id}
-        res = self.client.put(user_category_retrieve_url(self.user.id), payload)
+        res = self.client.put(user_category_detail_url(self.user_category.id), payload)
         self.assertEqual(res.status_code, 405)
 
     def test_partial_update_user_category_not_allowed(self):
         """Cannot partially update a user category (PATCH) on user-category/"""
         payload = {"user": self.user.id}
         res = self.client.patch(
-            user_category_delete_url(self.user_category.id), payload
+            user_category_detail_url(self.user_category.id), payload
         )
-        self.assertEqual(res.status_code, 405)
-
-    def test_partial_update_user_category_not_allowed_retrieve_url(self):
-        """Cannot partially update a user category (PATCH) on user-category/"""
-        payload = {"user": self.user.id}
-        res = self.client.patch(user_category_retrieve_url(self.user.id), payload)
         self.assertEqual(res.status_code, 405)
 
     def test_superuser_cannot_access_other_user_category(self):
         """Superuser cannot access another user's category"""
         self.client.force_authenticate(self.superuser)
-        res = self.client.get(self.USER_CATEGORY_RETRIEVE_URL)
+        res = self.client.get(USER_CATEGORY_URL)
         self.assertEqual(res.status_code, 403)
 
     def test_superuser_cannot_delete_other_user_category(self):
@@ -426,7 +341,7 @@ class PrivateUserCategoryTest(APITestCase):
         self.client.force_authenticate(self.superuser)
         payload = {"user_category_id": self.user_category.id}
         res = self.client.delete(
-            user_category_delete_url(self.user_category.id), payload
+            user_category_detail_url(self.user_category.id), payload
         )
         self.assertEqual(res.status_code, 403)
         self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
@@ -436,7 +351,7 @@ class PrivateUserCategoryTest(APITestCase):
         self.client.force_authenticate(self.staff)
         payload = {"user_category_id": self.user_category.id}
         res = self.client.delete(
-            user_category_delete_url(self.user_category.id), payload
+            user_category_detail_url(self.user_category.id), payload
         )
         self.assertEqual(res.status_code, 403)
         self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
