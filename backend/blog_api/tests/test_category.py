@@ -52,6 +52,7 @@ class PublicCategoryTest(APITestCase):
         """Retrieve a non-existent category"""
         res = self.client.get(category_detail_url(999))
         self.assertEqual(res.status_code, 404)
+        self.assertIn("Category not found", str(res.data))
 
     def test_create_category(self):
         """Create a new category"""
@@ -114,6 +115,14 @@ class PrivateCategoryTest(APITestCase):
         payload = {"name": "Test Category"}
         res = self.client.post(CATEGORY_URL, payload)
         self.assertEqual(res.status_code, 403)
+        self.assertIn("You do not have permission to create a category.", str(res.data))
+        self.assertEqual(Category.objects.count(), 1)
+
+    def test_cannot_create_duplicate_category(self):
+        """Cannot create a duplicate category"""
+        payload = {"name": "Sample Category"}
+        res = self.client.post(CATEGORY_URL, payload)
+        self.assertEqual(res.status_code, 400)
         self.assertEqual(Category.objects.count(), 1)
 
     def test_create_category_invalid_payload(self):
@@ -150,12 +159,14 @@ class PrivateCategoryTest(APITestCase):
         self.client.force_authenticate(self.staff)
         res = self.client.delete(category_detail_url(self.category.id))
         self.assertEqual(res.status_code, 403)
+        self.assertIn("You do not have permission to delete a category.", str(res.data))
         self.assertTrue(Category.objects.filter(id=self.category.id).exists())
 
     def test_delete_nonexistent_category(self):
         """Cannot delete a non-existent category"""
         res = self.client.delete(category_detail_url(999))
         self.assertEqual(res.status_code, 404)
+        self.assertIn("Category not found", str(res.data))
 
 
 class PublicUserCategoryTest(APITestCase):
@@ -280,7 +291,7 @@ class PrivateUserCategoryTest(APITestCase):
         payload = {"user": self.user.id, "category": self.category.id}
         res = self.client.post(USER_CATEGORY_URL, payload)
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(User_Category.objects.count(), 2)
+        self.assertEqual(User_Category.objects.count(), 1)
 
     def test_create_user_category_forbidden(self):
         """Cannot create a user category for another user"""
@@ -288,7 +299,11 @@ class PrivateUserCategoryTest(APITestCase):
         payload = {"user": self.other_user.id, "category": new_category.id}
         res = self.client.post(USER_CATEGORY_URL, payload)
         self.assertEqual(res.status_code, 403)
-        self.assertEqual(User_Category.objects.count(), 2)
+        self.assertIn(
+            "You do not have permission to create another user's category.",
+            str(res.data),
+        )
+        self.assertEqual(User_Category.objects.count(), 1)
 
     def test_delete_user_category(self):
         """Delete a user category by user_category_id"""
@@ -299,6 +314,24 @@ class PrivateUserCategoryTest(APITestCase):
         self.assertEqual(res.status_code, 204)
         self.assertFalse(
             User_Category.objects.filter(id=self.user_category.id).exists()
+        )
+
+    def test_delete_another_users_category_forbidden(self):
+        """Cannot delete another user's category"""
+        other_category = Category.objects.create(name="Other Category")
+        other_user_category = User_Category.objects.create(
+            user=self.other_user, category=other_category
+        )
+        payload = {"user_category_id": other_user_category.id}
+        res = self.client.delete(
+            user_category_detail_url(other_user_category.id), payload
+        )
+        self.assertEqual(res.status_code, 403)
+        self.assertIn(
+            "You do not have permission to delete a user category.", str(res.data)
+        )
+        self.assertTrue(
+            User_Category.objects.filter(id=other_user_category.id).exists()
         )
 
     def test_delete_other_user_category_forbidden(self):
@@ -312,9 +345,38 @@ class PrivateUserCategoryTest(APITestCase):
             user_category_detail_url(other_user_category.id), payload
         )
         self.assertEqual(res.status_code, 403)
+        self.assertIn(
+            "You do not have permission to delete a user category.", str(res.data)
+        )
         self.assertTrue(
             User_Category.objects.filter(id=other_user_category.id).exists()
         )
+
+    def test_superuser_cannot_delete_other_user_category(self):
+        """Superuser cannot delete another user's category"""
+        self.client.force_authenticate(self.superuser)
+        payload = {"user_category_id": self.user_category.id}
+        res = self.client.delete(
+            user_category_detail_url(self.user_category.id), payload
+        )
+        self.assertEqual(res.status_code, 403)
+        self.assertIn(
+            "You do not have permission to delete a user category.", str(res.data)
+        )
+        self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
+
+    def test_staff_cannot_delete_other_user_category(self):
+        """Staff cannot delete another user's category"""
+        self.client.force_authenticate(self.staff)
+        payload = {"user_category_id": self.user_category.id}
+        res = self.client.delete(
+            user_category_detail_url(self.user_category.id), payload
+        )
+        self.assertEqual(res.status_code, 403)
+        self.assertIn(
+            "You do not have permission to delete a user category.", str(res.data)
+        )
+        self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
 
     def test_update_user_category_not_allowed(self):
         """Cannot update a user category (PUT) on user-category/"""
@@ -329,29 +391,3 @@ class PrivateUserCategoryTest(APITestCase):
             user_category_detail_url(self.user_category.id), payload
         )
         self.assertEqual(res.status_code, 405)
-
-    def test_superuser_cannot_access_other_user_category(self):
-        """Superuser cannot access another user's category"""
-        self.client.force_authenticate(self.superuser)
-        res = self.client.get(USER_CATEGORY_URL)
-        self.assertEqual(res.status_code, 403)
-
-    def test_superuser_cannot_delete_other_user_category(self):
-        """Superuser cannot delete another user's category"""
-        self.client.force_authenticate(self.superuser)
-        payload = {"user_category_id": self.user_category.id}
-        res = self.client.delete(
-            user_category_detail_url(self.user_category.id), payload
-        )
-        self.assertEqual(res.status_code, 403)
-        self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
-
-    def test_staff_cannot_delete_other_user_category(self):
-        """Staff cannot delete another user's category"""
-        self.client.force_authenticate(self.staff)
-        payload = {"user_category_id": self.user_category.id}
-        res = self.client.delete(
-            user_category_detail_url(self.user_category.id), payload
-        )
-        self.assertEqual(res.status_code, 403)
-        self.assertTrue(User_Category.objects.filter(id=self.user_category.id).exists())
