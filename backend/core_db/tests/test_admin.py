@@ -9,10 +9,10 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from core_db.models import Category, User_Category, Blog, Blog_Category
 
-import logging
+# import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 
 def create_admin_user(email="admin@example.com", password="Django@123"):

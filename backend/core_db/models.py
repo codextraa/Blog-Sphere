@@ -205,6 +205,13 @@ class Category(models.Model):
 class User_Category(models.Model):
     """User Category Model"""
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "category"], name="unique_user_category"
+            )
+        ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
 
