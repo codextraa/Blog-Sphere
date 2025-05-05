@@ -271,6 +271,13 @@ class Blog(models.Model):
 class Blog_Category(models.Model):
     """Blog Category Model"""
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["blog", "category"], name="unique_blog_category"
+            )
+        ]
+
     blog = models.ForeignKey(Blog, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
 
