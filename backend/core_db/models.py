@@ -242,7 +242,15 @@ class Blog(models.Model):
     status = models.CharField(max_length=12, choices=STATUS, default="Draft")
     visibility = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    score = models.FloatField(default=0.0)
     slug = models.SlugField(unique=True, blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["-score"]),
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["status", "visibility", "-score"]),
+        ]
 
     def _blog_validation(self):
         if len(self.title) < 10:
