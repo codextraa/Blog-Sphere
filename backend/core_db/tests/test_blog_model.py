@@ -43,6 +43,7 @@ class BlogModelTest(TestCase):
         )
         self.assertEqual(blog.status, "Draft")
         self.assertEqual(blog.visibility, False)
+        self.assertEqual(blog.score, 0.0)
         self.assertEqual(blog.slug, "test-blog-title")
         self.assertEqual(str(blog), "Test Blog Title")
 

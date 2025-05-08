@@ -181,6 +181,8 @@ class BlogAdminSiteTests(TestCase):
             "cat_count": 0,
             "report_count": 0,
             "status": "Draft",
+            "visibility": False,
+            "score": 0.0,
             "_save": "",
         }
         res = self.client.post(url, payload, follow=True)
@@ -196,10 +198,12 @@ class BlogAdminSiteTests(TestCase):
             author=self.admin_user,
             overview="o" * 21,
             content="c" * 101,
-            likes=0,  # Add required fields
+            likes=0,
             cat_count=0,
             report_count=0,
             status="Draft",
+            visibility=False,
+            score=0.0,
         )
         url = reverse("admin:core_db_blog_category_add")
         payload = {

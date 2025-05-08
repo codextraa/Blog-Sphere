@@ -89,6 +89,7 @@ class CustomBlogCreationForm(forms.ModelForm):
             "report_count",
             "status",
             "visibility",
+            "score",
             "slug",
         )
         widgets = {
