@@ -43,6 +43,7 @@ class BlogModelTest(TestCase):
         )
         self.assertEqual(blog.status, "Draft")
         self.assertEqual(blog.visibility, False)
+        self.assertEqual(blog.score, 0.0)
         self.assertEqual(blog.slug, "test-blog-title")
         self.assertEqual(str(blog), "Test Blog Title")
 
@@ -222,6 +223,24 @@ class BlogModelTest(TestCase):
         )
         self.assertEqual(str(blog_category), f"{blog.title} - {self.category.name}")
         self.assertEqual(blog.cat_count, 1)
+
+    def test_duplicate_blog_category(self):
+        """Test duplicate blog category"""
+        blog = Blog.objects.create(
+            title="Test Blog Title",
+            content="c" * 101,
+            author=self.user,
+            overview="o" * 21,
+        )
+        Blog_Category.objects.create(
+            blog=blog,
+            category=self.category,
+        )
+        with self.assertRaises(ValidationError):
+            Blog_Category.objects.create(
+                blog=blog,
+                category=self.category,
+            )
 
     def test_invalid_cat_count_blog_category(self):
         """Test blog cat_count exceeds while creating blog category"""
