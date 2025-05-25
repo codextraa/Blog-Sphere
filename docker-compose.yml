@@ -88,6 +88,60 @@ services:
     networks:
       - web-app-network
 
+  sphere-celery:
+    container_name: sphere-celery
+    build: ./backend
+    image: sphere-backend:Python-3.12-slim-D
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: /app/run-celery.sh
+    volumes:
+      - backend-static:/app/static
+      - backend-media:/app/media
+    depends_on:
+      sphere-redis:
+        condition: service_healthy
+      sphere-backend:
+        condition: service_started
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - ./backend/.gitignore
+            - ./backend/run.sh
+            - ./backend/run-celery.sh
+            - ./backend/core_db/migrations
+            - ./backend/backend/*.pyc
+            - ./backend/backend/__pycache__
+            - ./backend/core_db/*.pyc
+            - ./backend/core_db/__pycache__
+            - ./backend/backend_api/*.pyc
+            - ./backend/backend_api/__pycache__
+    networks:
+      - web-app-network
+
+  sphere-celery-beat:
+    container_name: sphere-celery-beat
+    build: ./backend
+    image: sphere-backend:Python-3.12-slim-D
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: /app/run-celery-beat.sh
+    volumes:
+      - backend-static:/app/static
+      - backend-media:/app/media
+    depends_on:
+      sphere-redis:
+        condition: service_healthy
+      sphere-backend:
+        condition: service_started
+    networks:
+      - web-app-network
+
 volumes:
   backend-static:
   backend-media:

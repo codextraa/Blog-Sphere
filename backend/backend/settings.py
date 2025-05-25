@@ -342,9 +342,13 @@ CELERY_TIMEZONE = "UTC"
 
 # Celery Beat Schedule
 CELERY_BEAT_SCHEDULE = {
-    "update-blog-scores-every-5-minutes": {
-        "task": "myapp.tasks.update_blog_scores",
+    "update-blog-scores-every-hour": {
+        "task": "blog_api.tasks.update_blog_scores",
         "schedule": 3600,  # Run every 1 hour
+    },
+    "cleanup-expired-tokens-every-6-hours": {
+        "task": "core_db.tasks.cleanup_expired_tokens",
+        "schedule": 21600,  # Run every 6 hours
     },
 }
 
