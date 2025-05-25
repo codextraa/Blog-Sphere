@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "phonenumber_field",
     "phone_verify",
     "storages",
+    "django_celery_beat",
     "django_filters",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -329,6 +330,23 @@ CSRF_COOKIE_AGE = 60 * 60 * 24  # 1 day
 # Session Settings
 
 SESSION_COOKIE_SECURE = True  # Secure session cookies
+
+# Celery Settings
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    "update-blog-scores-every-5-minutes": {
+        "task": "myapp.tasks.update_blog_scores",
+        "schedule": 3600,  # Run every 1 hour
+    },
+}
 
 # User Settings
 
