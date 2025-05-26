@@ -1,7 +1,7 @@
 """Serializers for blog api"""
 
 from rest_framework import serializers
-from core_db.models import Category, User_Category
+from core_db.models import Category, User_Category, Blog, Blog_Category
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -9,7 +9,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ["id", "name"]
+        fields = ("id", "name")
 
 
 class UserCategorySerializer(serializers.ModelSerializer):
@@ -17,4 +17,34 @@ class UserCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User_Category
-        fields = ["id", "user", "category"]
+        fields = ("id", "user", "category")
+
+
+class BlogSerializer(serializers.ModelSerializer):
+    """Blog Serializer"""
+
+    class Meta:
+        model = Blog
+        fields = (
+            "id",
+            "title",
+            "content",
+            "overview",
+            "author",
+            "likes",
+            "cat_count",
+            "report_count",
+            "status",
+            "visibility",
+            "created_at",
+            "score",
+            "slug",
+        )
+
+
+class BlogCategorySerializer(serializers.ModelSerializer):
+    """Blog Category Serializer"""
+
+    class Meta:
+        model = Blog_Category
+        fields = ("id", "blog", "category")
