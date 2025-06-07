@@ -77,7 +77,7 @@ class CustomUserCreationForm(UserCreationForm):
 class CustomBlogCreationForm(forms.ModelForm):
     """Blog Creation form."""
 
-    class Meta:
+    class Meta:  # pylint: disable=R0801
         model = Blog
         fields = (
             "title",
