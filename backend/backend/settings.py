@@ -260,6 +260,13 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 
+# Algolia Settings
+ALGOLIA = {
+    "APPLICATION_ID": os.getenv("ALGOLIA_APP_ID"),
+    "API_KEY": os.getenv("ALGOLIA_ADMIN_API_KEY"),  # Use admin API key for indexing
+    "INDEX_PREFIX": "sphere_",
+}
+
 # Recaptcha Settings
 RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY")
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
