@@ -10,6 +10,7 @@ class UserPagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 50
 
+    # pylint: disable=R0801
     def get_paginated_response(self, data):
         """Prepare the paginated response."""
         total_count = self.page.paginator.count

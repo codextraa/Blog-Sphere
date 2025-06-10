@@ -23,7 +23,7 @@ class UserCategorySerializer(serializers.ModelSerializer):
 class BlogSerializer(serializers.ModelSerializer):
     """Blog Serializer"""
 
-    class Meta:
+    class Meta:  # pylint: disable=R0801
         model = Blog
         fields = (
             "id",

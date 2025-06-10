@@ -4,11 +4,14 @@ from rest_framework.pagination import CursorPagination
 
 
 class BlogPagination(CursorPagination):
+    """Custom pagination class for blog posts."""
+
     page_size = 10
     max_page_size = 100
     ordering = "-score"  # Order by score, descending
     page_size_query_param = "page_size"
 
+    # pylint: disable=R0801
     def get_paginated_response(self, data):
         """Prepare the paginated response."""
         total_count = self.page.paginator.count
