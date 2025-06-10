@@ -23,6 +23,12 @@ class UserCategorySerializer(serializers.ModelSerializer):
 class BlogSerializer(serializers.ModelSerializer):
     """Blog Serializer"""
 
+    author_email = serializers.CharField(source="author.email")
+    author_username = serializers.CharField(source="author.username")
+    author_first_name = serializers.CharField(source="author.first_name")
+    author_last_name = serializers.CharField(source="author.last_name")
+    category_names = serializers.SerializerMethodField()
+
     class Meta:  # pylint: disable=R0801
         model = Blog
         fields = (
@@ -40,6 +46,9 @@ class BlogSerializer(serializers.ModelSerializer):
             "score",
             "slug",
         )
+
+    def get_category_names(self, obj):
+        return [bc.category.name for bc in obj.categories.all()]
 
 
 class BlogCategorySerializer(serializers.ModelSerializer):
